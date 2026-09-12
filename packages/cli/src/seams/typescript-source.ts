@@ -149,9 +149,25 @@ export function dropBlock(
         );
       }
       to = from + match.index + match[0].length;
-      // Expande até o fim da linha em que o `end` terminou.
-      const eol = next.indexOf('\n', to);
-      to = eol === -1 ? next.length : eol + 1;
+
+      // Expande até o fim da linha em que o `end` terminou — MAS só se ele já não terminou
+      // numa fronteira de linha.
+      //
+      // A guarda não é detalhe: sem ela, um `end` que inclui o `\n` final (e vários
+      // incluem — `'\\n\\s*\\}\\n'` é a forma natural de dizer "a linha que fecha o
+      // bloco") faz o `indexOf` pular para o fim da PRÓXIMA linha e remover uma linha a
+      // mais. Foi assim que o corpo de `verifyPassword` ficou vazio: a costura devia
+      // remover só o braço `if (!passwordHash) { … }` e levou junto o
+      // `return argon2.verify(passwordHash, plain);` — a verificação de senha de verdade.
+      //
+      // E vale registrar o quão perto isso passou de ser um bug de autenticação em vez de
+      // um erro de compilação: o que salvou foi o `tsc` exigir retorno de
+      // `Promise<boolean>`. Com um tipo de retorno mais frouxo, `verifyPassword` devolveria
+      // `undefined` e todo login passaria.
+      if (next[to - 1] !== '\n') {
+        const eol = next.indexOf('\n', to);
+        to = eol === -1 ? next.length : eol + 1;
+      }
     }
 
     changes += next.slice(from, to).split('\n').length - 1;
@@ -313,6 +329,46 @@ function absorbLeadingComments(lines: readonly string[], index: number): number 
 }
 
 /**
+ * Absorve o que sobrou de um comentário de bloco ABAIXO de uma remoção.
+ *
+ * Simétrico a `absorbLeadingComments`. O caso: a âncora de fim de um bloco casa uma
+ * linha DENTRO do doc-comment do símbolo seguinte, então a remoção leva a abertura do
+ * comentário e as primeiras linhas do corpo, e deixa as linhas de continuação e o
+ * fechamento sem abertura. O TypeScript falha com `TS1003` na declaração seguinte, sem
+ * dizer que o problema é um comentário.
+ *
+ * Devolve o índice da primeira linha que deve SOBREVIVER: desce pelas linhas de
+ * continuação até o fechamento e o inclui na remoção — mas só enquanto não houver uma
+ * abertura pelo caminho, porque aí o comentário está íntegro e não é da nossa conta.
+ *
+ * (E sim: a primeira versão deste comentário citava o fechamento literalmente e fechava
+ * o próprio bloco, que é exatamente o defeito descrito acima.)
+ */
+function absorbOrphanCommentClose(lines: readonly string[], index: number): number {
+  let cursor = index;
+
+  while (cursor < lines.length) {
+    const linha = (lines[cursor] ?? '').trim();
+
+    // Abertura: o comentário daqui para baixo está íntegro.
+    if (linha.startsWith('/*')) return index;
+
+    if (linha.startsWith('*/')) return cursor + 1;
+
+    // Linha de continuação: segue procurando o fechamento.
+    if (linha.startsWith('*')) {
+      cursor += 1;
+      continue;
+    }
+
+    // Qualquer outra coisa (código, linha vazia): não havia fechamento órfão.
+    return index;
+  }
+
+  return index;
+}
+
+/**
  * `dropBlock`, mas absorvendo o doc-comment colado acima do início.
  *
  * O boilerplate documenta cada símbolo exportado com um bloco `/** … *\/` que explica a
@@ -331,6 +387,40 @@ export function dropBlockWithLeadingDoc(
   const lines = content.split('\n');
   const anchor = lines.findIndex((line) => startRe.test(line));
   if (anchor === -1) return unmatched(content);
+
+  // O bloco inteiro cabe DENTRO de um comentário?
+  //
+  // Aí o kind está errado, e o erro é silencioso. Este editor sobe absorvendo o
+  // doc-comment colado acima do início — que neste caso é o próprio comentário onde a
+  // âncora está —, come a abertura e as primeiras linhas do corpo, e deixa o fechamento
+  // órfão. O arquivo fica sintaticamente inválido e o compilador reclama da declaração
+  // SEGUINTE, sem mencionar comentário nenhum.
+  //
+  // O critério é o FIM, não o início: com o início em prosa e o fim no código, o alvo é
+  // um símbolo cujo doc-comment começa acima — e absorver o doc é exatamente o que se
+  // quer. Só quando os dois estão dentro do mesmo comentário o alvo é um parágrafo, e aí
+  // a ferramenta certa é `dropBlock`.
+  const startNoComentario = /^\*(?!\/)/.test((lines[anchor] ?? '').trim());
+  if (startNoComentario) {
+    const endRe = compile(end);
+    const fim = lines.findIndex((line, i) => i >= anchor && endRe.test(line));
+    const fimNoComentario = fim !== -1 && /^\*(?!\/)/.test((lines[fim] ?? '').trim());
+    // Sem abertura de comentário entre os dois: é o mesmo bloco de comentário.
+    const mesmoComentario =
+      fimNoComentario &&
+      !lines.slice(anchor, fim).some((line) => line.trim().startsWith('/*'));
+
+    if (mesmoComentario) {
+      throw new SeamStructureError(
+        file,
+        `o bloco /${start}/ … /${end}/ cabe inteiro dentro de um comentário ` +
+          `(linhas ${anchor + 1}-${fim + 1}). \`dropBlockWithLeadingDoc\` apaga um ` +
+          `SÍMBOLO junto com o doc-comment dele, e aqui comeria a abertura do comentário ` +
+          `deixando o fechamento órfão; para remover um parágrafo de dentro do ` +
+          `comentário, use \`dropBlock\`.`,
+      );
+    }
+  }
 
   const top = absorbLeadingComments(lines, anchor);
 
@@ -374,6 +464,27 @@ export function dropBlockWithLeadingDoc(
  * chaves. Não há versão "quase certa" disto.
  */
 export function dropClassMember(content: string, pattern: string): SeamResult {
+  // Laço, e não uma passada só: os padrões do manifesto usam ALTERNÂNCIA para varrer um
+  // grupo de handlers de uma vez
+  // (`setupTwoFactor|enableTwoFactor|snoozeTwoFactor|disableTwoFactor`), e a versão que
+  // removia apenas o primeiro casamento deixava três rotas de 2FA vivas chamando métodos
+  // que já não existiam no service — `TS2339` em quatro linhas de um controller que não
+  // menciona a feature removida.
+  let next = content;
+  let total = 0;
+
+  for (;;) {
+    const out = dropOneClassMember(next, pattern);
+    if (!out.matched) break;
+    next = out.content;
+    total += out.changes;
+  }
+
+  if (total === 0) return unmatched(content);
+  return { matched: true, content: next, changes: total };
+}
+
+function dropOneClassMember(content: string, pattern: string): SeamResult {
   const re = compile(pattern);
   const lines = content.split('\n');
   const anchor = lines.findIndex((line) => re.test(line));
@@ -441,6 +552,11 @@ export function dropClassMember(content: string, pattern: string): SeamResult {
   let tail = end + 1;
   if ((lines[tail] ?? 'x').trim() === '') tail += 1;
 
+  // E se o que sobrou logo abaixo for o RESTO de um doc-comment cuja abertura veio
+  // dentro do que foi removido, ele vai junto: um `*/` órfão é erro de sintaxe, e o
+  // compilador o reporta na declaração seguinte, sem mencionar comentário.
+  tail = absorbOrphanCommentClose(lines, tail);
+
   const kept = [...lines.slice(0, start), ...lines.slice(tail)];
   return {
     matched: true,
@@ -476,8 +592,11 @@ export function dropCommentSection(content: string, pattern: string): SeamResult
     }
   }
 
-  const kept = [...lines.slice(0, start), ...lines.slice(end)];
-  return { matched: true, content: collapseBlankRuns(kept.join('\n')), changes: end - start };
+  // Mesmo cuidado do `dropClassMember`: uma seção que termina no meio de um
+  // doc-comment deixaria o fechamento órfão.
+  const tail = absorbOrphanCommentClose(lines, end);
+  const kept = [...lines.slice(0, start), ...lines.slice(tail)];
+  return { matched: true, content: collapseBlankRuns(kept.join('\n')), changes: tail - start };
 }
 
 /**
@@ -696,6 +815,20 @@ export function findImports(content: string): ImportStatement[] {
  * comentário que menciona o mesmo caminho.
  */
 export function dropImport(content: string, pattern: string): SeamResult {
+  // Guarda contra o erro de manifesto que ESTA costura convida: escrever o padrão como
+  // ele aparece na LINHA (`\./auth'`) em vez de como o especificador é (`^\./auth$`).
+  // Um especificador de módulo nunca contém aspas, então uma aspa no padrão é sempre
+  // engano — e o engano é do tipo que não dá erro: a costura simplesmente não casa, e se
+  // ela for `required: false` o import órfão vai inteiro para o projeto gerado. Foi assim
+  // que `packages/shared` do preset `minimal` quebrou com `TS2305`.
+  if (/['"`]/.test(pattern)) {
+    throw new SeamStructureError(
+      '<manifesto>',
+      `o padrão de \`dropImport\` contém aspas: /${pattern}/. Ele casa o ESPECIFICADOR do ` +
+        `módulo, sem as aspas da linha — escreva algo como '^\\./auth$'.`,
+    );
+  }
+
   const re = compile(pattern);
   const imports = findImports(content).filter((imp) => re.test(imp.specifier));
   if (imports.length === 0) return unmatched(content);
@@ -969,6 +1102,21 @@ export function assertBalanced(file: string, content: string): void {
       inBlockComment = true;
       i += 1;
       continue;
+    }
+
+    // `*/` fora de um bloco de comentário.
+    //
+    // Em TypeScript isso é sempre erro de sintaxe, e é a assinatura exata de uma
+    // remoção que comeu a ABERTURA de um doc-comment e parou antes do fechamento. O
+    // compilador reclama com `TS1003: Identifier expected` na linha seguinte, que não
+    // menciona comentário nenhum — então sem esta checagem o gerador entrega um projeto
+    // que não compila por um motivo que ninguém associa ao gerador.
+    if (ch === '*' && next === '/') {
+      throw new SeamStructureError(
+        file,
+        `"*/" órfão na linha ${line}: alguma costura removeu a abertura de um ` +
+          `comentário de bloco e deixou o fechamento.`,
+      );
     }
     if (ch === '"' || ch === "'" || ch === '`') {
       quote = ch;

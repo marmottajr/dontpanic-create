@@ -1,108 +1,110 @@
+'use client';
+
+import { useRef } from 'react';
+
 import { CommandBlock } from './command-block';
+import { Shell } from './layout';
 import { RichText } from './rich-text';
-import { Shell } from './section';
-import { NPM_PACKAGE, REPO_URL } from '@/content/stack';
+import { HERO_META } from '@/content/stack';
 import type { Messages } from '@/i18n/messages';
+import { useConfiguratorContext } from '@/lib/configurator-context';
 
 /**
- * O letreiro.
+ * O hero.
  *
- * “DON’T” e “PANIC” têm cinco letras cada, então empilhados formam um bloco alinhado
- * nas duas margens sem truque de layout — é o achado tipográfico que justifica esticar
- * o eixo `wdth` do Archivo até 125%: a capa do Guia, em letras grandes e amigáveis.
+ * O letreiro é dimensionado pelo **contêiner**, não pela viewport: `cqw` mede a coluna
+ * em que ele está, então "DON'T / PANIC" fecha nas duas margens tanto no telefone
+ * (onde a coluna é a tela) quanto no desktop (onde é metade dela). Com `vw` isso só
+ * acertaria numa largura e sobraria ou faltaria em todas as outras.
+ *
+ * "DON'T" e "PANIC" têm cinco letras cada — empilhadas, formam um bloco alinhado sem
+ * truque de layout. É o achado tipográfico que justifica esticar o eixo `wdth` do
+ * Archivo: a capa do Guia, em letras grandes e amigáveis.
  *
  * O letreiro é a marca; o `<h1>` é o argumento. Deixar o letreiro ser o `<h1>` daria
  * uma página cujo título é o nome do produto — bonito e sem informação.
  */
-export function Hero({
-  messages,
-  command,
-}: {
-  messages: Messages;
-  command: string;
-}): React.ReactElement {
+export function Hero({ messages }: { messages: Messages }): React.ReactElement {
+  const ctx = useConfiguratorContext();
   const { hero } = messages;
+  const startButton = useRef<HTMLButtonElement>(null);
 
   return (
-    <section id="top" className="pt-10 pb-14 sm:pt-16 sm:pb-20">
+    <section id="top" className="pt-8 pb-14 sm:pt-12 sm:pb-[72px]">
       <Shell>
-        {/*
-         * A coluna do letreiro é `max-content`, não uma largura fixa.
-         *
-         * Com `minmax(0,20rem)` ela media 320px enquanto o `font-size` do letreiro
-         * chegava a 7rem: "PANIC" em extrabold com o eixo `wdth` em 125% ocupa cerca de
-         * 400px, então o letreiro transbordava a própria coluna e passava POR CIMA do
-         * `<h1>`. Texto que estoura a coluna não a faz crescer — `minmax` dimensiona a
-         * faixa, não o conteúdo, e o excesso simplesmente vaza.
-         *
-         * `max-content` amarra a coluna ao tamanho real do letreiro, então as duas
-         * crescem juntas e o `clamp` continua livre para escolher o tamanho.
-         */}
-        <div className="grid items-start gap-8 lg:grid-cols-[max-content_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-14 lg:gap-y-0">
-          <div
-            role="img"
-            aria-label={hero.mastheadLabel}
-            className="select-none font-extrabold uppercase leading-[0.84] tracking-[-0.03em] text-amber-display w-mast text-[clamp(3.4rem,17vw,6.4rem)] lg:text-[clamp(4rem,7.4vw,7rem)]"
-          >
-            <div>Don’t</div>
-            <div>Panic</div>
-          </div>
+        <p className="label label-wide text-faint">{HERO_META}</p>
 
-          {/*
-           * A marginália do hero.
-           *
-           * Sob o letreiro sobra uma faixa vertical vazia de umas trezentas alturas de
-           * linha — o `<h1>` ao lado é mais alto que o bloco de duas linhas. Em vez de
-           * decorar o vazio, ele recebe o mesmo tratamento que toda seção desta página
-           * tem: uma faixa de metadados técnicos. Isso faz a grade anotada aparecer já
-           * na primeira tela, em vez de começar só na seção seguinte, e o que está ali
-           * é o que alguém procura antes de rodar um `npx` de terceiro — o nome do
-           * pacote, a licença e o repositório.
-           *
-           * Fica escondido no telefone: numa coluna só, ele se interporia entre a marca
-           * e o argumento.
-           */}
-          <div className="rail hidden lg:col-start-1 lg:row-start-2 lg:mt-8 lg:block">
-            <div className="font-mono text-text">{NPM_PACKAGE}</div>
-            <div className="mt-1">{messages.footer.license}</div>
-            <a
-              href={REPO_URL}
-              rel="noreferrer noopener"
-              className="mt-1 block font-mono hover:text-amber"
+        <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,34%)_minmax(0,1fr)] lg:gap-14">
+          <div className="[container-type:inline-size]">
+            <p
+              role="img"
+              aria-label={hero.mastheadLabel}
+              className="masthead select-none text-amber"
+              style={{ fontSize: 'max(38px, 25.1cqw)' }}
             >
-              marmottajr/dontpanic
-            </a>
+              <span className="block">Don’t</span>
+              <span className="block">Panic</span>
+            </p>
           </div>
 
-          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <h1 className="measure text-h1 font-bold tracking-[-0.02em]">{hero.title}</h1>
-            <p className="measure mt-6 text-lead text-dim">
+          <div className="min-w-0">
+            <h1 className="display measure text-h2">{hero.title}</h1>
+            <p className="measure mt-5 text-lead text-dim">
               <RichText>{hero.lead}</RichText>
             </p>
-            <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2">
-              <a
-                href="#build"
-                className="inline-flex items-center rounded-control bg-amber-solid px-4 py-2.5 text-small font-semibold text-on-amber hover:brightness-105"
+
+            {/* O campo de nome aqui não é um segundo configurador: é a primeira
+                pergunta do assistente, adiantada. Quem digita e clica entra no modal
+                já no passo 2, com o nome no lugar. */}
+            <div className="mt-7 flex flex-col gap-2 sm:flex-row">
+              <label htmlFor="hero-name" className="sr-only">
+                {messages.configurator.nameLabel}
+              </label>
+              <input
+                id="hero-name"
+                type="text"
+                value={ctx.recipe.project.displayName}
+                onChange={(event) => ctx.setDisplayName(event.target.value)}
+                placeholder={messages.configurator.namePlaceholder}
+                autoComplete="off"
+                spellCheck={false}
+                className="min-w-0 flex-1 rounded-1 border border-rule bg-surface px-3.5 py-3 text-ink placeholder:text-faint"
+              />
+              <button
+                ref={startButton}
+                type="button"
+                onClick={() => ctx.wizard.openWizard(startButton.current)}
+                className="shrink-0 rounded-1 bg-amber px-5 py-3 font-semibold text-on-amber hover:brightness-105"
               >
-                {hero.ctaConfigure}
-              </a>
-              <a href="#proof" className="text-small text-amber underline-offset-4 hover:underline">
+                {hero.nameCta}
+              </button>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <button
+                type="button"
+                onClick={() => ctx.wizard.openWizard(null)}
+                className="text-small font-semibold text-amber underline-offset-4 hover:underline"
+              >
+                {messages.wizard.openHero} →
+              </button>
+              <a href="#proof" className="text-small text-dim underline-offset-4 hover:underline">
                 {hero.ctaProof}
               </a>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 sm:mt-14">
+        <div className="mt-12">
           <CommandBlock
-            command={command}
+            command={ctx.command}
             label={hero.commandLabel}
             copy={messages.configurator.copy}
             copied={messages.configurator.copied}
             copyFailed={messages.configurator.copyFailed}
             size="large"
           />
-          <p className="mt-3 text-meta text-dim">
+          <p className="mt-2.5 text-small text-dim">
             <RichText>{hero.commandNote}</RichText>
           </p>
         </div>
@@ -111,12 +113,10 @@ export function Hero({
           {hero.facts.map((fact) => (
             <div
               key={fact.label}
-              className="border-b border-rule py-5 sm:border-b-0 sm:border-r sm:px-5 sm:first:pl-0 sm:last:border-r-0"
+              className="border-b border-rule py-5 sm:border-b-0 sm:border-r sm:px-6 sm:first:pl-0 sm:last:border-r-0"
             >
-              <dt className="text-[1.6rem] font-bold leading-none tabular-nums w-wide">
-                {fact.value}
-              </dt>
-              <dd className="measure-tight mt-2 text-meta text-dim">
+              <dt className="display text-[28px] leading-none tabular-nums">{fact.value}</dt>
+              <dd className="measure-tight mt-2 text-small text-dim">
                 <RichText>{fact.label}</RichText>
               </dd>
             </div>

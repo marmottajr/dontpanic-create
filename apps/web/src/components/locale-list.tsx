@@ -43,7 +43,7 @@ export function SmallMasthead(): React.ReactElement {
     <p
       role="img"
       aria-label="Don’t Panic"
-      className="select-none font-extrabold uppercase leading-[0.84] tracking-[-0.03em] text-amber-display w-mast text-[clamp(2.6rem,13vw,4rem)]"
+      className="masthead select-none text-amber text-[clamp(2.6rem,13vw,4rem)]"
     >
       <span className="block">Don’t</span>
       <span className="block">Panic</span>

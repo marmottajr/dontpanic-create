@@ -86,6 +86,14 @@ export default async function LocaleLayout({
         {/* Primeiro filho do body, e síncrono: aplica o tema salvo antes da primeira
             pintura. Qualquer coisa assíncrona chega depois do flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        {/*
+         * Só os dois pesos que a primeira tela usa de fato.
+         *
+         * Archivo é o letreiro e os títulos; Plex Sans 400 é o corpo. Pré-carregar os
+         * seis arquivos competiria com o próprio HTML pela banda inicial e atrasaria a
+         * primeira pintura — o oposto do que um preload existe para fazer. Os outros
+         * pesos chegam pelo `@font-face`, quando o texto que os usa aparece.
+         */}
         <link
           rel="preload"
           href="/fonts/archivo-latin.woff2"
@@ -95,7 +103,7 @@ export default async function LocaleLayout({
         />
         <link
           rel="preload"
-          href="/fonts/azeret-latin.woff2"
+          href="/fonts/plex-sans-400.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"

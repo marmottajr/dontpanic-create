@@ -35,16 +35,16 @@ export function DerivedNames({
 
   return (
     <div>
-      <h3 className="text-h3 font-semibold">{c.derivedTitle}</h3>
-      <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
+      <h3 className="label text-dim">{c.derivedTitle}</h3>
+      <dl className="mt-3 grid gap-x-8 sm:grid-cols-2">
         {rows.map((row) => (
           <div key={row.label} className="flex items-baseline gap-3 border-t border-rule py-2">
-            <dt className="rail flex-1">{row.label}</dt>
-            <dd className="min-w-0 break-all font-mono text-[0.78rem] text-amber">{row.value}</dd>
+            <dt className="min-w-0 flex-1 text-small text-dim">{row.label}</dt>
+            <dd className="min-w-0 break-all font-mono text-small text-amber">{row.value}</dd>
           </div>
         ))}
       </dl>
-      <p className="measure mt-4 text-meta text-dim">
+      <p className="measure mt-4 text-small text-dim">
         <RichText>{c.derivedNote}</RichText>
       </p>
     </div>

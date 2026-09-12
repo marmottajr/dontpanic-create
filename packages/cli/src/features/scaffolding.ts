@@ -14,7 +14,7 @@
  *  - charts/ pertence ao dossiê de **platform**, não a esta feature: mapa 1866 e 1919
  */
 
-import type { FeatureManifest, SeamEdit } from '../types.ts';
+import type { FeatureId, FeatureManifest, SeamEdit } from '../types.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // scaffolding — os blocos de construção que o boilerplate traz e não usa
@@ -382,5 +382,35 @@ export const DOC_TRUTH_SEAMS: SeamEdit[] = [
       '(minutos) ao `pnpm-workspace.yaml`; a lista de exceções já está lá esperando.',
     reason:
       'A3.3 do mapa (5104-5117): garantia documentada e não implementada. `pnpm-workspace.yaml` declara `minimumReleaseAgeExclude` sem `minimumReleaseAge`, então a política que a frase promete não existe — há só a lista de isentos de uma regra ausente. Propagar a frase entrega um projeto que AFIRMA ter proteção de supply-chain e não tem, que é pior que não afirmar nada. Se a costura deixar de casar, confira se o boilerplate finalmente configurou a política (aí a frase fica) ou se só reescreveu o texto.',
+  },
+];
+
+/**
+ * Arquivos que só ficam órfãos quando um PAR de features sai junto.
+ *
+ * O `deletePaths` de um manifesto não tem condicionalidade — ele descreve "o que é
+ * exclusivo desta feature" —, e existe um caso que nenhum dos dois lados pode declarar
+ * sozinho: `apps/web/src/lib/auth-config.ts` tem exatamente duas metades, a de oauth
+ * (`parseOAuthProviders`, `enabledOAuthProviders`, `oauthEnabled`, `oauthStartUrl`) e a
+ * de public-signup (`readFlag`, `signupEnabled`). Cada feature remove a sua e o arquivo
+ * sobrevive — correto. Mas quando as DUAS saem, o que resta é um doc-comment: um arquivo
+ * sem nenhum `export`, o que para o TypeScript **não é um módulo**. O spec dele então
+ * falha com `TS2306: File … is not a module`, num arquivo que ninguém editou de propósito.
+ *
+ * Declarar isto explicitamente é melhor que a alternativa tentadora — o aplicador
+ * detectar "arquivo ficou sem exports" e apagar por conta própria. Essa heurística
+ * apagaria um módulo de efeito colateral legítimo, e a decisão ficaria invisível no
+ * relatório. Aqui a regra tem nome, dono e motivo.
+ */
+export const FILES_ORPHANED_BY_FEATURE_PAIRS: {
+  when: readonly FeatureId[];
+  paths: readonly string[];
+  reason: string;
+}[] = [
+  {
+    when: ['oauth', 'publicSignup'],
+    paths: ['apps/web/src/lib/auth-config.ts', 'apps/web/src/lib/auth-config.test.ts'],
+    reason:
+      'As duas únicas metades de `auth-config.ts` são oauth e public-signup. Com as duas fora sobra só o doc-comment — arquivo sem export nenhum, que o TS não considera módulo, e o spec quebra com TS2306.',
   },
 ];

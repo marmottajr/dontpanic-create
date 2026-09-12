@@ -4,7 +4,7 @@ import { LOCALES, SOURCE_LOCALE, type Locale } from './locales';
 import { MESSAGES } from './messages';
 import { PROOF_IDS } from './messages/types';
 import { FEATURE_IDS, PRESET_IDS } from '@/lib/recipe-bridge';
-import { PORTS, STACK } from '@/content/stack';
+import { STACK } from '@/content/stack';
 
 /**
  * Paridade de chaves entre os sete idiomas.
@@ -79,9 +79,36 @@ describe('dicionários', () => {
     expect(MESSAGES[locale].proof.items.map((item) => item.id)).toEqual([...PROOF_IDS]);
   });
 
-  it.each(LOCALES)('%s descreve cada item da stack e cada port', (locale: Locale) => {
+  it.each(LOCALES)('%s descreve cada item da stack', (locale: Locale) => {
     expect(MESSAGES[locale].inside.stackRoles).toHaveLength(STACK.length);
-    expect(MESSAGES[locale].inside.portsResources).toHaveLength(PORTS.length);
+  });
+
+  /**
+   * A grade "De fábrica" é 2×3 no desenho. Um idioma com cinco ou sete tópicos deixaria
+   * um buraco ou uma linha órfã, e nada no tipo impede isso.
+   */
+  it.each(LOCALES)('%s tem seis tópicos de fábrica', (locale: Locale) => {
+    expect(MESSAGES[locale].inside.factory).toHaveLength(6);
+  });
+
+  /** Os doze passos do assistente existem em todos os idiomas, com os três campos. */
+  it.each(LOCALES)('%s descreve os doze passos do assistente', (locale: Locale) => {
+    const steps = MESSAGES[locale].wizard.steps;
+    expect(Object.keys(steps)).toHaveLength(12);
+    for (const [id, step] of Object.entries(steps)) {
+      expect(step.eyebrow, id).toBeTruthy();
+      expect(step.question, id).toBeTruthy();
+      expect(step.help, id).toBeTruthy();
+    }
+  });
+
+  /**
+   * `progress` é a única string com interpolação. Perder um dos marcadores numa
+   * tradução renderiza "Passo de 12" — e o tipo não tem como ver isso.
+   */
+  it.each(LOCALES)('%s mantém os marcadores de {n} e {total}', (locale: Locale) => {
+    expect(MESSAGES[locale].wizard.progress).toContain('{n}');
+    expect(MESSAGES[locale].wizard.progress).toContain('{total}');
   });
 
   /**

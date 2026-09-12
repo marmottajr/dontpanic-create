@@ -59,11 +59,11 @@ export function LocaleSwitcher({
   return (
     <details ref={details} className="relative">
       <summary
-        className="flex cursor-pointer list-none items-center gap-2 rounded-control border border-rule px-2.5 py-1.5 text-meta text-dim hover:border-rule-strong hover:text-text [&::-webkit-details-marker]:hidden"
+        className="flex cursor-pointer list-none items-center gap-2 rounded-1 border border-rule px-2.5 py-2 text-meta text-dim hover:border-dim/60 hover:text-ink [&::-webkit-details-marker]:hidden"
         aria-label={`${label}: ${info.name} (${info.short})`}
       >
         <Flag locale={current} />
-        <span className="font-mono">{info.short}</span>
+        <span className="font-mono whitespace-nowrap">{info.short}</span>
         <svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true" className="opacity-60">
           <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.4" fill="none" />
         </svg>
@@ -85,8 +85,8 @@ export function LocaleSwitcher({
               onClick={() => writeStoredLocale(locale)}
               aria-current={locale === current ? 'true' : undefined}
               className={cn(
-                'flex items-center gap-2.5 px-2.5 py-2 text-small hover:bg-well',
-                locale === current ? 'text-amber' : 'text-text',
+                'flex items-center gap-2.5 px-2.5 py-2 text-small hover:bg-surface',
+                locale === current ? 'text-amber' : 'text-ink',
               )}
             >
               <Flag locale={locale} />

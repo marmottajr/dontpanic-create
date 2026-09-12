@@ -74,7 +74,19 @@ export const i18nManifest: FeatureManifest = {
    * troca a leitura do cookie por uma constante (costuras abaixo).
    */
   deletePaths: [
-    'apps/web/src/i18n/locales.ts',
+    // `locales.ts` NÃO é apagado — é PODADO para um idioma (costuras abaixo).
+    //
+    // Apagá-lo obrigava a reescrever `request.ts` para um locale constante, e isso tinha
+    // uma consequência que nada no mapa antecipava: a versão original chama
+    // `await cookies()`, e ler cookie é o que OPTA todas as páginas por renderização
+    // dinâmica. Sem essa chamada, o Next passou a prerenderizar `/login` estaticamente e
+    // o build morreu com "useSearchParams() should be wrapped in a suspense boundary" —
+    // num arquivo que o gerador não tocou, por um mecanismo (estático vs. dinâmico) que
+    // não aparece em nenhuma costura.
+    //
+    // Manter `locales.ts` com um único idioma é a subtração mínima e deixa `request.ts`
+    // intacto: ele continua lendo o cookie, `isLocale` continua válido (aceitando só o
+    // idioma que sobrou) e o opt-in dinâmico continua de pé.
     'apps/web/src/i18n/locales.test.ts',
     'apps/web/src/i18n/locale-actions.ts',
     // Teste de paridade pt-BR ↔ en-US: sai porque com um catálogo só não há
@@ -115,10 +127,29 @@ export const i18nManifest: FeatureManifest = {
       reason:
         'Mapa 2724 (linhas 71-74): o wrapper `flex justify-between` existe só para separar seletor e ThemeToggle; removendo o seletor sem colapsar o wrapper o ThemeToggle fica encostado à esquerda num flex de um item só.',
     },
+    // Terceiro ponto de montagem do seletor, que o dossiê não listou: `auth-shell.tsx`
+    // é a moldura de TODA tela deslogada (login, forgot, reset, verify, /invite). Sem
+    // estas duas costuras o web não compila — `TS2307` no módulo apagado.
+    {
+      file: 'apps/web/src/components/auth-shell.tsx',
+      kind: 'dropImport',
+      pattern: '^@/components/language-switcher$',
+      reason:
+        'Import do seletor na moldura das telas deslogadas (auth-shell.tsx:3). O componente sai inteiro em `deletePaths`, então o import pendurado quebra a resolução de módulo do Next.',
+    },
+    {
+      file: 'apps/web/src/components/auth-shell.tsx',
+      kind: 'replace',
+      pattern:
+        '<div\\s+className="flex items-center gap-1">\\s*<LanguageSwitcher\\s*/>\\s*<ThemeToggle\\s*/>\\s*</div>',
+      replacement: '<ThemeToggle />',
+      reason:
+        'O wrapper `flex items-center gap-1` existe para separar seletor e ThemeToggle; com um item só ele é ruído. Mesma decisão da sidebar (mapa 2724).',
+    },
     {
       file: 'apps/web/src/app/platform/layout.tsx',
       kind: 'dropImport',
-      pattern: '@/components/language-switcher',
+      pattern: '^@/components/language-switcher$',
       required: false,
       reason:
         'Mapa 2725 (linha 8). `required: false` porque o header do painel `/platform` só existe se a feature `platform` estiver instalada — e ela não existe em modo single-tenant (mapa 3040).',
@@ -199,38 +230,150 @@ export const i18nManifest: FeatureManifest = {
     // Mapa 2969-2973 ("Level (i) mechanics"): mantém `request.ts`, troca as
     // linhas 3 e 8-10 por um locale constante, para que a leitura do cookie e o
     // `isLocale` saiam junto com `locales.ts`.
+    // O TIPO DE RETORNO de `mailLocale()` tem de colapsar junto com o corpo.
+    //
+    // Uma costura irmã já reduz o corpo a `return '<locale>';`, mas a assinatura continuava
+    // `: 'pt-BR' | 'en'` — e com `EmailLocale` reduzido a uma chave, devolver a união dá
+    // `TS2322` no ponto em que o valor é passado ao mailer, não aqui. É o par que precisa
+    // sair junto: corpo sem assinatura compila mentindo sobre o contrato.
     {
-      file: 'apps/web/src/i18n/request.ts',
-      kind: 'dropImport',
-      pattern: '\\./locales',
-      reason:
-        'Mapa 2969-2971: `locales.ts` é apagado (defaultLocale/isLocale/LOCALE_COOKIE), então o import de `./locales` em `request.ts:3` não resolve mais.',
-    },
-    {
-      file: 'apps/web/src/i18n/request.ts',
-      kind: 'dropImport',
-      pattern: 'next/headers',
-      reason:
-        'Sem `LOCALE_COOKIE` não há cookie a ler; `cookies()` de `next/headers` fica sem uso e o lint do projeto gerado falha.',
-    },
-    {
-      file: 'apps/web/src/i18n/request.ts',
+      file: 'apps/api/src/modules/platform/services/platform-tenants.service.ts',
       kind: 'replace',
-      pattern:
-        'const\\s+store\\s*=\\s*await\\s+cookies\\(\\)[\\s\\S]*?const\\s+locale\\s*=\\s*isLocale\\([^;]*;',
-      replacement: "const locale = '{{i18n.defaultLocale}}';",
+      pattern: "function mailLocale\\(locale: string\\): 'pt-BR' \\| 'en'",
+      replacement: "function mailLocale(_locale: string): '{{i18n.emailLocale}}'",
+      required: false,
       reason:
-        'Mapa 2969-2971 (request.ts:8-10): o locale ativo deixa de vir de cookie e passa a ser a constante da receita. `{{i18n.defaultLocale}}` é substituído pelo apply.ts — o manifesto não sabe qual idioma sobreviveu. Se esta costura não casar, o `import(`../../messages/${locale}.json`)` da linha 13 aponta para o catálogo apagado e toda página 500.',
+        'Assinatura de `mailLocale()` no painel da plataforma. O parâmetro vira `_locale` porque o corpo colapsado não o lê mais e o `noUnusedParameters` do projeto gerado recusa o nome sem underscore. `required: false`: o arquivo só existe com a feature `platform`.',
+    },
+
+    // ─── specs que passam um locale que deixou de existir ────────────────────────
+    //
+    // `EmailLocale` colapsa para a única chave que sobrou, então todo `locale: 'en'` num
+    // spec deixa de tipar. Classe que só aparece em `pnpm test` (o tsconfig de build
+    // exclui `*.spec.ts`), e por isso foi a última a ser encontrada.
+    {
+      file: 'apps/api/src/modules/auth/support/email-templates.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('builds an English email when locale=en", end: '\\}\\);' },
+      required: false,
+      reason:
+        'O teste do template em inglês. `required: false` porque, se o idioma que sobrou FOR o inglês, é o teste em pt-BR que sai — e aí a costura irmã é que casa.',
     },
     {
-      file: 'apps/web/src/i18n/request.ts',
+      file: 'apps/api/src/modules/auth/support/email-templates.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('falls back to pt-BR for an unknown locale", end: '\\}\\);' },
+      required: false,
+      reason:
+        'O fallback de locale desconhecido deixa de ser observável quando só existe um locale: qualquer entrada resolve para ele, e o teste passaria por construção sem provar nada.',
+    },
+    // Todo `locale: '<idioma descartado>'` em spec vira o idioma que SOBROU.
+    //
+    // Reescrever em vez de apagar é deliberado: nesses testes o locale é um parâmetro de
+    // passagem — o que eles afirmam é que o e-mail foi enfileirado, que o convite foi
+    // emitido, que o link tem o token. Apagá-los tiraria cobertura de caminhos que são
+    // núcleo. E a troca é feita pela chave DESCARTADA (`{{i18n.droppedEmailLocaleKey}}`),
+    // não pela literal `'en'`: se o idioma que sobrar for o inglês, é o `'pt-BR'` dos
+    // specs que precisa mudar, e a costura funciona nos dois sentidos sem duplicação.
+    ...[
+      'apps/api/src/modules/auth/services/auth.service.spec.ts',
+      'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      // `invitation-email.spec.ts` NÃO entra aqui: nele o locale não é de passagem — os
+      // testes afirmam o ASSUNTO do e-mail em inglês, palavra por palavra. Reescrever o
+      // locale fazia o template renderizar em português e a asserção comparar contra o
+      // texto inglês. Ali o tratamento é outro: ver as duas costuras abaixo.
+    ].map((file) => ({
+      file,
+      kind: 'replace' as const,
+      pattern: "locale: '{{i18n.droppedEmailLocaleKey}}'",
+      replacement: "locale: '{{i18n.emailLocale}}'",
+      required: false,
+      reason:
+        'Locale de passagem em spec: o teste continua provando o que provava (e-mail enfileirado, convite emitido, link com token), só deixa de nomear um idioma que o projeto não tem mais. `required: false` porque os specs de convite só existem com a feature `invitations`.',
+    })),
+    // Os dois testes de `invitation-email.spec.ts` que afirmam o texto EM INGLÊS.
+    //
+    // Assimetria conhecida e aceita na v1: as âncoras nomeiam os testes ingleses porque os
+    // quatro presets têm `defaultLocale: 'pt'`, então é sempre o inglês que sai. Numa
+    // receita `--i18n=en` seriam os três testes em pt-BR que precisariam sair — o
+    // `apply.ts` emite um aviso alto nesse caso, em vez de gerar uma suíte vermelha em
+    // silêncio. O mapa (I18) alerta justamente para não mexer nas fixtures do Guia do
+    // Mochileiro aqui: os assuntos são comparados com `toBe`, string exata.
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
       kind: 'dropBlock',
       block: {
-        start: '//\\s*next-intl "without i18n routing"',
-        end: 'no\\s*/\\[locale\\]\\s*segment in the URL\\.',
+        start: "it\\('carries the link in both the button and the plain-text part",
+        end: '\\}\\);',
       },
+      required: false,
       reason:
-        'O comentário explica que o locale vive num cookie escrito "pela troca de bandeira" — que não existe mais. Comentário que descreve máquina inexistente é o que faz o próximo leitor procurar código que não está lá.',
+        'Afirma `mail.subject` em inglês com `toBe` (string exata) e o corpo com "Marvin invited you to join". Com o inglês fora, o template renderiza em pt-BR e a comparação falha — e não há reescrita possível: o assunto do teste É o texto inglês. A cobertura do link no botão e no texto puro continua nos testes pt-BR do mesmo arquivo.',
+    },
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
+      kind: 'dropBlock',
+      block: {
+        start: "it\\('states the deadline in UTC, whatever the machine thinks",
+        end: '\\}\\);',
+      },
+      required: false,
+      reason:
+        'Mesmo caso: formata o prazo com o locale inglês e compara a string montada. O teste irmão em pt-BR cobre a formatação de data que sobra.',
+    },
+    {
+      // DEPOIS dos dois `dropBlock` acima, de propósito: as costuras de um arquivo são
+      // aplicadas na ordem do array, então quando esta roda só sobrou o teste que passa
+      // o locale sem afirmar o texto dele ("escapes everything that came from a human").
+      // Esse é reescrito em vez de apagado — ele prova a escapagem de HTML vinda de
+      // entrada humana, que é defesa contra injeção e não tem nada de i18n.
+      file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
+      kind: 'replace',
+      pattern: "locale: '{{i18n.droppedEmailLocaleKey}}'",
+      replacement: "locale: '{{i18n.emailLocale}}'",
+      required: false,
+      reason:
+        'O locale remanescente no teste de escapagem de HTML, que não afirma texto traduzido nenhum. Reescrito para o idioma que sobrou: apagar o teste tiraria a cobertura da defesa contra injeção no e-mail de convite.',
+    },
+    {
+      file: 'apps/api/src/modules/platform/services/platform-tenants.service.spec.ts',
+      kind: 'dropBlock',
+      block: {
+        start: 'it\\([\'"]mails in English when that is the company',
+        end: '\\}\\);',
+      },
+      required: false,
+      reason:
+        'Este teste é SOBRE a escolha de idioma ("mails in English when that is the company\'s language") — com um idioma só não há escolha a provar, e `mailLocale()` passou a ser constante. Diferente dos de cima, aqui não há o que reescrever: o assunto do teste desapareceu. `required: false`: arquivo só existe com `platform`.',
+    },
+
+    // ── web · locales.ts podado para um idioma ───────────────────────────────
+    //
+    // As três costuras antigas sobre `request.ts` (tirar o import de `./locales`, tirar
+    // `next/headers` e trocar a leitura do cookie por uma constante) FORAM REMOVIDAS: ver
+    // a nota em `deletePaths`. `request.ts` sai intacto.
+    {
+      file: 'apps/web/src/i18n/locales.ts',
+      kind: 'replace',
+      pattern: 'export const locales = \\[[^\\]]*\\] as const;',
+      replacement: "export const locales = ['{{i18n.defaultLocale}}'] as const;",
+      reason:
+        'A lista de idiomas colapsa para o único que a receita pediu. É a fonte de `Locale`, de `isLocale` e do array que o seletor iterava — com um elemento, `isLocale` passa a aceitar só ele, que é exatamente o comportamento de single-language.',
+    },
+    {
+      file: 'apps/web/src/i18n/locales.ts',
+      kind: 'replace',
+      pattern: "export const defaultLocale: Locale = '[^']*';",
+      replacement: "export const defaultLocale: Locale = '{{i18n.defaultLocale}}';",
+      reason:
+        'O default tem de ser o idioma que sobrou, senão ele não está em `locales` e o tipo `Locale` recusa a atribuição. A tag vem da varredura de `apps/web/messages` (o `pt` da receita é `pt-BR` no catálogo).',
+    },
+    {
+      file: 'apps/web/src/i18n/locales.ts',
+      kind: 'dropLinesMatching',
+      pattern: "^\\s*'{{i18n.droppedLocaleTag}}':",
+      reason:
+        'A entrada do idioma descartado em `localeMeta` (rótulo, sigla e bandeira). O `Record<Locale, …>` deixaria de tipar com uma chave que já não é um `Locale`.',
     },
 
     // ── web · cobertura e Storybook ──────────────────────────────────────────
@@ -244,9 +387,10 @@ export const i18nManifest: FeatureManifest = {
     {
       file: 'apps/web/vitest.config.mts',
       kind: 'dropLinesMatching',
-      pattern: "'src/i18n/locales\\.ts'",
+      pattern: "'src/i18n/locales\\.test\\.ts'",
+      required: false,
       reason:
-        'Mapa 2729 (vitest.config.mts:34): mesma entrada de cobertura, para `src/i18n/locales.ts`, também apagado.',
+        'A entrada de cobertura do SPEC de locales, que é apagado. A entrada de `src/i18n/locales.ts` FICA: o arquivo sobrevive podado, e tirá-lo da medição esconderia código de produção.',
     },
     {
       file: 'apps/web/vitest.config.mts',

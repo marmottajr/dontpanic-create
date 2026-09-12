@@ -41,9 +41,9 @@ export function CommandBlock({
   }, [command]);
 
   return (
-    <div className="border border-rule bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-rule px-3 py-1.5">
-        <span className="rail w-condensed">{label}</span>
+    <div className="code-block">
+      <div className="flex items-center justify-between gap-3 border-b border-rule px-3 py-2">
+        <span className="label text-faint">{label}</span>
         <CopyButton
           value={command}
           idleLabel={copy}
@@ -67,7 +67,7 @@ export function CommandBlock({
           data-command=""
           className={cn(
             'block whitespace-pre-wrap [overflow-wrap:anywhere] font-mono leading-relaxed',
-            size === 'large' ? 'text-[0.9rem] sm:text-[1.05rem]' : 'text-[0.82rem] sm:text-meta',
+            size === 'large' ? 'text-small sm:text-body' : 'text-meta sm:text-small',
             flash && 'command-changed',
           )}
         >

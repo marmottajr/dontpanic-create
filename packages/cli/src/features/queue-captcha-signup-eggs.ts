@@ -142,7 +142,11 @@ export const queueManifest: FeatureManifest = {
     },
     {
       file: 'apps/api/src/infra/queue/queue.module.ts',
-      kind: 'dropBlockWithLeadingDoc',
+      // `dropBlock`, não `dropBlockWithLeadingDoc`: o bloco cabe INTEIRO dentro de um
+      // comentário (é um parágrafo, não um símbolo). O outro kind sobe absorvendo o
+      // doc-comment de cima — que aqui é este mesmo comentário —, come a abertura e
+      // deixa o fechamento órfão, o que torna o arquivo sintaticamente inválido.
+      kind: 'dropBlock',
       block: {
         start: 'With `bullmq` this does nothing',
         end: 'background work it was split apart to avoid\\.',
@@ -521,7 +525,11 @@ export const captchaManifest: FeatureManifest = {
     // ── comentários em arquivos que sobrevivem (mapa 3520-3523) ───────────────
     {
       file: 'apps/api/src/modules/invitations/public-invitations.controller.ts',
-      kind: 'dropBlockWithLeadingDoc',
+      // `dropBlock`, não `dropBlockWithLeadingDoc`: o bloco cabe INTEIRO dentro de um
+      // comentário (é um parágrafo, não um símbolo). O outro kind sobe absorvendo o
+      // doc-comment de cima — que aqui é este mesmo comentário —, come a abertura e
+      // deixa o fechamento órfão, o que torna o arquivo sintaticamente inválido.
+      kind: 'dropBlock',
       block: { start: 'No `@RequireCaptcha`', end: '256 bits' },
       required: false,
       reason:
@@ -616,7 +624,13 @@ export const captchaManifest: FeatureManifest = {
     {
       file: 'packages/shared/src/tenant.ts',
       kind: 'dropImport',
-      pattern: "\\./auth'",
+      // `^\\./auth$` e não `\\./auth'`: o `dropImport` casa o ESPECIFICADOR do módulo
+      // (`./auth`), não o texto da linha — então a aspa de fechamento nunca aparece no que
+      // é testado, e o padrão antigo não casava NADA. Silenciosamente, porque a costura é
+      // `required: false`: o `captchaTokenSchema` sobrevivia importado de um módulo que já
+      // não o exporta, e o `packages/shared` do projeto gerado falhava com `TS2305` — o
+      // pacote que api e web compilam contra, então nada mais compilava.
+      pattern: '^\\./auth$',
       required: false,
       reason:
         'O import de `captchaTokenSchema` em `tenant.ts` existe SÓ para `signupSchema`. Opcional porque a remoção de public-signup também o deixa órfão e pode tê-lo removido primeiro — as duas features reivindicam a mesma linha por razões diferentes, e aplicar duas vezes é no-op.',
@@ -720,24 +734,57 @@ export const captchaManifest: FeatureManifest = {
       },
       {
         file,
-        kind: 'dropLinesMatching' as const,
-        pattern: 'captchaToken(:|,)|captchaRef\\.current\\?\\.reset\\(\\)',
+        // O CAMPO sai como argumento, nunca como linha. Em quatro das cinco telas ele é
+        // inline no próprio `mutateAsync`
+        // (`await forgot.mutateAsync({ ...values, captchaToken: captchaToken ?? undefined })`),
+        // então `dropLinesMatching` levava A CHAMADA DA API junto — o formulário de
+        // forgot-password ficava com um `try {}` vazio e nunca chamava o endpoint. O
+        // sintoma no build era `no-empty`; o sintoma em produção seria um formulário que
+        // diz "enviado" e não envia nada.
+        kind: 'replace' as const,
+        pattern: ',?\\s*captchaToken: captchaToken \\?\\? undefined,?',
+        replacement: '',
         required: false,
-        reason: `O campo no payload do mutate e o reset de token de uso único na tela de ${action}. O reset existia porque o token é one-shot: sem ele o segundo envio falhava sempre.`,
+        reason: `O campo \`captchaToken\` no payload do mutate da tela de ${action}, removido como ARGUMENTO (com a vírgula que o prendia) e não como linha — em quatro das cinco telas ele divide a linha com a chamada da API.`,
       },
       {
         file,
         kind: 'dropLinesMatching' as const,
-        pattern: '<Captcha\\s',
+        pattern: '^\\s*captchaRef\\.current\\?\\.reset\\(\\);',
+        required: false,
+        reason: `O reset do token de uso único na tela de ${action} — statement completo numa linha só, então remover por linha é seguro aqui. Ele existia porque o token é one-shot: sem ele o segundo envio falhava sempre.`,
+      },
+      {
+        file,
+        // `dropLinesMatching '<Captcha\\s'` só funcionava onde o elemento cabe numa linha.
+        // Em `verify-email` o JSX é multi-linha e a linha é exatamente `<Captcha` — sem
+        // nada depois, então `\\s` não casa. Resultado: o elemento inteiro sobrevivia e o
+        // web falhava com `Cannot find name 'Captcha'`. `dropBlock` de `<Captcha` até `/>`
+        // cobre as duas formas, porque no caso de uma linha o início e o fim casam nela.
+        kind: 'dropBlock' as const,
+        block: { start: '<Captcha\\b', end: '/>' },
         required: false,
         reason: `A renderização do widget na tela de ${action}, com \`action="${action}"\` — o nome tinha de casar com o \`@RequireCaptcha('${action}')\` do controller para o v3 não aceitar token gerado em outra página.`,
       },
       {
         file,
-        kind: 'dropBlock' as const,
-        block: { start: "CaptchaRequired", end: '^\\s*\\}\\s*$' },
+        // O braço do captcha é o PRIMEIRO `if` de uma cadeia `else if`, e o `dropBlock`
+        // até a primeira linha `}` levava a cadeia INTEIRA — com ela os branches de 401,
+        // 423, token inválido e o `toast.error(tErr('generic'))`. O `catch` ficava vazio:
+        // a tela engolia todo erro em silêncio (e o `no-empty` do projeto gerado
+        // reclamava, que foi a sorte). Aqui o `replace` remove só o primeiro braço e
+        // promove o `else if` seguinte a `if`.
+        kind: 'replace' as const,
+        // O `+` no grupo é necessário: a tela de login tem DOIS braços de captcha
+        // seguidos (`CaptchaRequired` e o 503 "provedor fora do ar"), e colapsar só o
+        // primeiro deixava o segundo chamando `tCaptcha`, cujo `useTranslations` já saiu —
+        // `TS2304`. O grupo repetido consome a corrida inteira de braços que mencionam
+        // `tCaptcha` e promove o primeiro braço NÃO-captcha a `if`.
+        pattern:
+          '(?:if\\s*\\([^)]*\\)\\s*\\{[^}]*tCaptcha\\([^}]*\\}\\s*else\\s+)+if\\s*\\(',
+        replacement: 'if (',
         required: false,
-        reason: `Os branches de erro \`CaptchaRequired\` e 503 na tela de ${action}: códigos que a API deixa de emitir.`,
+        reason: `O braço de erro \`CaptchaRequired\` na tela de ${action} — código que a API deixa de emitir. Remove SÓ o primeiro braço e promove o \`else if\` seguinte, preservando o resto do tratamento de erro da tela.`,
       },
     ]),
     {
@@ -1121,7 +1168,13 @@ export const publicSignupManifest: FeatureManifest = {
     {
       file: 'packages/shared/src/tenant.ts',
       kind: 'dropImport',
-      pattern: "\\./auth'",
+      // `^\\./auth$` e não `\\./auth'`: o `dropImport` casa o ESPECIFICADOR do módulo
+      // (`./auth`), não o texto da linha — então a aspa de fechamento nunca aparece no que
+      // é testado, e o padrão antigo não casava NADA. Silenciosamente, porque a costura é
+      // `required: false`: o `captchaTokenSchema` sobrevivia importado de um módulo que já
+      // não o exporta, e o `packages/shared` do projeto gerado falhava com `TS2305` — o
+      // pacote que api e web compilam contra, então nada mais compilava.
+      pattern: '^\\./auth$',
       required: false,
       reason:
         'O import de `captchaTokenSchema` existia só para `signupSchema`. Opcional: a remoção de captcha reivindica a mesma linha (mapa 3847), e quem chegar primeiro a leva — aplicar duas vezes é no-op.',
@@ -1265,7 +1318,11 @@ export const publicSignupManifest: FeatureManifest = {
     },
     {
       file: 'apps/web/src/lib/auth-config.ts',
-      kind: 'dropBlockWithLeadingDoc',
+      // `dropBlock`, não `dropBlockWithLeadingDoc`: o bloco cabe INTEIRO dentro de um
+      // comentário (é um parágrafo, não um símbolo). O outro kind sobe absorvendo o
+      // doc-comment de cima — que aqui é este mesmo comentário —, come a abertura e
+      // deixa o fechamento órfão, o que torna o arquivo sintaticamente inválido.
+      kind: 'dropBlock',
       block: {
         start: '- `NEXT_PUBLIC_SIGNUP_ENABLED` vs the API',
         end: 'no hint it was pointless to fill in\\.',
@@ -1736,7 +1793,8 @@ export const easterEggsManifest: FeatureManifest = {
       file: 'apps/api/src/common/filters/all-exceptions.filter.ts',
       kind: 'dropImport',
       pattern: '\\.\\./marvin',
-      reason: '`marvinQuip` foi apagado com `marvin.ts`.',
+      reason:
+        'Import de `marvinQuip` no spec do filtro global; o módulo sai em `deletePaths`, então sem esta costura a suíte da API não carrega.',
     },
     {
       file: 'apps/api/src/common/filters/all-exceptions.filter.ts',
@@ -1876,6 +1934,26 @@ export const easterEggsManifest: FeatureManifest = {
       reason:
         'O bloco de ASCII art `DONT PANIC!` (linhas 1-8, figlet de box-drawing dentro de uma cerca ```text). É o primeiro bloco do arquivo, então a âncora de cerca casa nele antes de qualquer outro.',
     },
+    // As falas do Marvin nos dois catálogos de i18n.
+    //
+    // Sem estas costuras o passo de branding zera o TEXTO e mantém a CHAVE, e o
+    // `messages.test.ts` do projeto gerado tem uma asserção "has no empty string
+    // translations in either locale" — que falha. A chave tem de SAIR, não ficar vazia.
+    //
+    // Em lockstep nos dois arquivos (regra global 1 do mapa): o mesmo teste compara os
+    // conjuntos de chaves e nomeia a órfã, então podar um lado só troca uma falha por
+    // outra. Quando `i18n` também está desligada sobra um catálogo, e a costura do outro
+    // vira `arquivo-ausente` — que o aplicador não trata como erro porque foi ele quem o
+    // apagou.
+    ...(['pt-BR', 'en-US'] as const).flatMap((locale) =>
+      (['notFound', 'serverError'] as const).map((screen) => ({
+        file: `apps/web/messages/${locale}.json`,
+        kind: 'dropJsonKey' as const,
+        pattern: `errors.${screen}.marvin`,
+        required: false,
+        reason: `A fala do Marvin na tela de ${screen === 'notFound' ? '404' : '500'} (${locale}). Apagar a CHAVE, e não esvaziar o texto: o teste de integridade de mensagens do projeto gerado recusa tradução vazia. required:false porque este catálogo pode não existir em modo single-language.`,
+      })),
+    ),
     {
       file: 'README.md',
       kind: 'dropLinesMatching',

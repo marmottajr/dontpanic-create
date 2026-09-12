@@ -40,11 +40,11 @@ export function NameField({
 
   return (
     <fieldset>
-      <legend className="text-h3 font-semibold">{c.nameLegend}</legend>
+      <legend className="sr-only">{c.nameLabel}</legend>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="project-name" className="rail mb-1.5 block">
+          <label htmlFor="project-name" className="label mb-1.5 block text-dim">
             {c.nameLabel}
           </label>
           <input
@@ -57,9 +57,10 @@ export function NameField({
             spellCheck={false}
             aria-describedby="project-name-help"
             aria-invalid={nameIssues.some((issue) => issue.level === 'error')}
-            className="w-full rounded-control border border-rule bg-surface px-3 py-2 text-small text-text placeholder:text-dim/70 aria-[invalid=true]:border-amber"
+            data-step-focus=""
+            className="w-full rounded-1 border border-rule bg-surface px-3.5 py-2.5 text-ink placeholder:text-faint aria-[invalid=true]:border-danger"
           />
-          <p id="project-name-help" className="mt-1.5 text-meta text-dim">
+          <p id="project-name-help" className="mt-1.5 text-small text-dim">
             {c.nameHelp}
           </p>
           <IssueList
@@ -71,7 +72,7 @@ export function NameField({
 
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2">
-            <label htmlFor="project-slug" className="rail">
+            <label htmlFor="project-slug" className="label text-dim">
               {c.slugLabel}
             </label>
             {slugIsCustom ? (
@@ -83,7 +84,7 @@ export function NameField({
                 {c.slugReset}
               </button>
             ) : (
-              <span className="rail">{c.slugDerived}</span>
+              <span className="label text-faint">{c.slugDerived}</span>
             )}
           </div>
           <input
@@ -95,9 +96,9 @@ export function NameField({
             spellCheck={false}
             aria-describedby="project-slug-help"
             aria-invalid={slugIssues.some((issue) => issue.level === 'error')}
-            className="w-full rounded-control border border-rule bg-surface px-3 py-2 font-mono text-small text-text aria-[invalid=true]:border-amber"
+            className="w-full rounded-1 border border-rule bg-surface px-3.5 py-2.5 font-mono text-small text-ink aria-[invalid=true]:border-danger"
           />
-          <p id="project-slug-help" className="mt-1.5 text-meta text-dim">
+          <p id="project-slug-help" className="mt-1.5 text-small text-dim">
             {c.slugHelp}
           </p>
           <IssueList issues={slugIssues} apply={onSlugChange} applyLabel={c.applySuggestion} />
@@ -124,8 +125,8 @@ function IssueList({
         <li
           key={issue.message}
           className={cn(
-            'border-l-2 pl-3 text-meta',
-            issue.level === 'error' ? 'border-amber text-text' : 'border-rule-strong text-dim',
+            'border-l-2 pl-3 text-small',
+            issue.level === 'error' ? 'border-danger text-ink' : 'border-rule text-dim',
           )}
         >
           <RichText>{issue.message}</RichText>

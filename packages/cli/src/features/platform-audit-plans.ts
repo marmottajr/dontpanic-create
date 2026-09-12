@@ -139,6 +139,94 @@ export const platformManifest: FeatureManifest = {
   },
 
   seams: [
+    // ─── specs de NÚCLEO que afirmam comportamento de SUPERADMIN ─────────────────
+    //
+    // `Role.SUPERADMIN` e o escopo `{ kind: 'platform' }` saem com esta feature, e nove
+    // specs de arquivos que SOBREVIVEM os mencionam. Não é cosmético: os dois deixam de
+    // existir nos TIPOS, então os arquivos não compilam sob ts-jest. E essa falha não
+    // aparece no `pnpm typecheck` do projeto gerado — o tsconfig de build exclui
+    // `*.spec.ts` —, só em `pnpm test`. Foi a última classe de erro a aparecer.
+    {
+      file: 'apps/api/src/modules/auth/guards/tenant-status.guard.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('lets the SUPERADMIN through", end: '\\}\\);' },
+      reason:
+        'O teste afirma que o operador de plataforma atravessa o guard sem empresa. Sem o papel, `authed({ role: \'SUPERADMIN\' })` não tipa.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/guards/permission.guard.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('refuses the SUPERADMIN", end: '\\}\\);' },
+      reason:
+        'O teste que prova a decisão "SUPERADMIN não passa em rota de negócio". Some com o papel — e a decisão que ele documentava deixa de existir junto, o que é coerente: sem painel não há operador de plataforma.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/profile-permissions.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('marks the SUPERADMIN as platform operator", end: '\\}\\);' },
+      reason:
+        'O teste do `platformOperator: true`. O campo sai do contrato resolvido com a feature.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/profile-permissions.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*platformOperator:',
+      reason:
+        'A propriedade `platformOperator` nas asserções `toEqual` dos testes que SOBREVIVEM (o de "grants nothing when there is no authenticated user"). Um `toEqual` com chave a mais falha em runtime, não em tipo.',
+    },
+    {
+      file: 'apps/api/src/infra/prisma/prisma.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('declares the platform scope for a SUPERADMIN", end: '\\}\\);' },
+      reason:
+        'O teste de `asPlatform()`, método que sai com a feature. É o escopo que atravessa empresas; sem painel não há quem o abra.',
+    },
+    {
+      file: 'apps/api/src/infra/tenancy/tenant-context.spec.ts',
+      kind: 'replace',
+      pattern: "kind: 'platform'",
+      replacement: "kind: 'system'",
+      reason:
+        'Dois testes usam `{ kind: \'platform\' }` como escopo QUALQUER, para provar que o contexto é limpo ao fim do `run`. Trocar por `system` preserva exatamente o que eles verificam em vez de apagá-los — o comportamento testado não tem nada a ver com plataforma.',
+    },
+    {
+      file: 'apps/api/src/infra/tenancy/tenant-scope.interceptor.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('opens the platform scope for a SUPERADMIN", end: '\\}\\);' },
+      reason:
+        'Os DOIS testes que abrem escopo de plataforma para o SUPERADMIN (com e sem tenant no token). O `dropBlock` itera, então o par sai numa costura só.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/bullmq-queue.adapter.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: "^\\s*\\['platform', \\{ kind: 'platform' \\}\\],",
+      required: false,
+      reason:
+        'A entrada `platform` da tabela `it.each<[string, TenantScope]>` que prova que só um escopo de tenant contribui id. A entrada `system` FICA e continua provando a regra. Elemento completo numa linha, então remover por linha é seguro. `required: false`: o adapter só existe com bullmq.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/memory-queue.adapter.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: "^\\s*\\['platform', \\{ kind: 'platform' \\}\\],",
+      reason:
+        'Idem no adapter de memória, que existe em qualquer configuração de fila.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/tenant-access.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*suspended(At|Reason):|^\\s*canceledAt:',
+      required: false,
+      reason:
+        'A escrituração de suspensão (`suspendedAt`, `suspendedReason`, `canceledAt`) sai do model com o painel — é ele quem suspende e reativa. As linhas são propriedades completas da fixture.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/tenant-access.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('never leaks the internal suspension bookkeeping", end: '\\}\\);' },
+      required: false,
+      reason:
+        'O teste existe para provar que a escrituração de suspensão não vaza no DTO; sem os campos não há o que não vazar.',
+    },
     // ── app.module.ts — a maior costura do repo (mapa linhas 89-96) ──────────
     {
       file: 'apps/api/src/app.module.ts',
@@ -748,6 +836,49 @@ export const plansManifest: FeatureManifest = {
   },
 
   seams: [
+    // ─── specs que mencionam plano em arquivos que SOBREVIVEM ────────────────────
+    {
+      file: 'apps/api/src/modules/auth/support/tenant-access.spec.ts',
+      kind: 'replace',
+      pattern: 'toTenantDto\\((tenant\\([^)]*\\)), [^)]*\\)',
+      replacement: 'toTenantDto($1)',
+      reason:
+        '`toTenantDto` perde o segundo parâmetro (o nome do plano) com a feature. As chamadas de dois argumentos no spec dão `TS2554`; a captura preserva o primeiro argumento como ele está.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/tenant-access.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*plan(Id|Name):',
+      reason:
+        'As duas propriedades de plano na asserção `toEqual` do DTO. Chave a mais num `toEqual` falha em runtime.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/tenant-access.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('reports a null plan name when the tenant has no plan", end: '\\}\\);' },
+      reason: 'O teste é inteiramente sobre `planName`, que sai do DTO.',
+    },
+    {
+      file: 'apps/api/src/modules/tenants/services/tenants.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*expect\\(dto\\.planName\\)',
+      reason:
+        'A asserção de `planName` no teste de `me()`, que SOBREVIVE — ele prova que a empresa vem do escopo e não de um argumento, o que é núcleo de multi-tenancy.',
+    },
+    {
+      file: 'apps/api/src/modules/tenants/services/tenants.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "describe\\('plan'", end: '\\}\\);' },
+      reason:
+        'O `describe` inteiro de `service.plan()` — o método sai com a feature. Os de `me`, `update` e `branding` ficam.',
+    },
+    {
+      file: 'apps/api/src/modules/tenants/support/tenant-provisioning.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "describe\\('trial and plan'", end: '\\}\\);' },
+      reason:
+        'O `describe` que exercita a escolha do plano em `provisionTenant` — `planName` sai de `ProvisionedTenant` e `planId` de `ProvisionTenantInput`, então os testes não compilam. O provisionamento em si (empresa, perfis, permissões) continua coberto pelos outros describes.',
+    },
     // ── tenancy.prisma: o índice órfão ──────────────────────────────────────
     {
       file: 'apps/api/prisma/schema/tenancy.prisma',
@@ -1032,6 +1163,71 @@ export const plansManifest: FeatureManifest = {
     },
 
     // ── web: use-tenant.ts ──────────────────────────────────────────────────
+    // O SPEC importa os mesmos símbolos: `PLAN_QUERY_KEY`, `PLAN_USAGE_QUERY_KEY`,
+    // `isAtLimit`, `usePlan`, `usePlanUsage`. Sem estas costuras o web falha com cinco
+    // `TS2305` num arquivo de teste — e o arquivo NÃO pode ser apagado, porque também
+    // cobre `useTenant`/`useBranding`, que sobrevivem.
+    {
+      file: 'apps/web/src/components/tenant/use-tenant.test.ts',
+      kind: 'dropImportSpecifier',
+      pattern: '^(PLAN_QUERY_KEY|PLAN_USAGE_QUERY_KEY|isAtLimit|usePlan|usePlanUsage)$',
+      target: '^\\./use-tenant$',
+      required: false,
+      reason:
+        'Especificadores de plano no spec de `use-tenant`. `required: false` porque a extensão do arquivo varia (.ts/.tsx) entre versões do boilerplate; a costura irmã cobre a outra.',
+    },
+    {
+      file: 'apps/web/src/components/tenant/use-tenant.test.tsx',
+      kind: 'dropImportSpecifier',
+      pattern: '^(PLAN_QUERY_KEY|PLAN_USAGE_QUERY_KEY|isAtLimit|usePlan|usePlanUsage)$',
+      target: '^\\./use-tenant$',
+      required: false,
+      reason:
+        'Idem, na variante `.tsx` — que é a do template atual. Ver a costura irmã acima.',
+    },
+    {
+      file: 'apps/web/src/components/tenant/use-tenant.test.tsx',
+      kind: 'dropBlock',
+      block: { start: "describe\\('isAtLimit'", end: '\\}\\);' },
+      required: false,
+      reason:
+        'O `describe` que exercita `isAtLimit` — a função sai com os planos. Os `describe` de queries e mutations FICAM: cobrem `useTenant`/`useBranding`, que sobrevivem.',
+    },
+    // Os usos remanescentes têm de sair como BLOCO, não por linha. Um
+    // `dropLinesMatching` levava `const plan = renderHook(() => usePlan(), …)` e deixava
+    // o `await waitFor(() => expect(plan.result…))` que o referencia — `TS2304` sobre uma
+    // variável que a própria costura apagou. A unidade certa é o trecho do teste.
+    {
+      file: 'apps/web/src/components/tenant/use-tenant.test.tsx',
+      kind: 'dropBlock',
+      block: {
+        start: "apiMock\\.mockResolvedValue\\(\\{ id: 'p1', code: 'pro' \\}\\)",
+        end: "'/tenants/me/plan'\\);",
+      },
+      required: false,
+      reason:
+        'A metade de PLANO do teste "reads branding and the plan without retrying": o mock, o `renderHook(usePlan)`, o `waitFor` e o `expect` da rota. A metade de BRANDING fica — `useBranding` sobrevive aos planos, e apagar o teste inteiro tiraria a cobertura dela.',
+    },
+    {
+      file: 'apps/web/src/components/tenant/use-tenant.test.tsx',
+      kind: 'dropLinesMatching',
+      // Ancorado no INÍCIO do statement (`^\\s*expect\\(`), o que garante que cada linha
+      // casada é um statement completo — o único caso em que remover por linha é seguro.
+      // As duas asserções ficam no teste "keeps the query keys stable", que sobrevive por
+      // causa de `TENANT_QUERY_KEY` e `BRANDING_QUERY_KEY`.
+      pattern: '^\\s*expect\\((PLAN_QUERY_KEY|PLAN_USAGE_QUERY_KEY)\\)',
+      required: false,
+      reason:
+        'As duas asserções de chave de query de plano no teste de estabilidade de chaves. O teste FICA: metade dele cobre `TENANT_QUERY_KEY`/`BRANDING_QUERY_KEY`, que sobrevivem aos planos.',
+    },
+    {
+      file: 'apps/web/src/components/tenant/use-tenant.test.tsx',
+      kind: 'dropBlock',
+      block: { start: "it\\('reads how much of the plan is spent'", end: '\\}\\);' },
+      required: false,
+      reason:
+        'O teste inteiro de `usePlanUsage` — o hook sai com os planos, então não há metade a preservar aqui (ao contrário do teste de branding+plano acima).',
+    },
     {
       file: 'apps/web/src/components/tenant/use-tenant.ts',
       kind: 'dropLinesMatching',

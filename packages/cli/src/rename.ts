@@ -1035,7 +1035,7 @@ export interface BrandingResult {
  * simplesmente trocar um token (mapa §4).
  */
 export async function applyBranding(ctx: GeneratorContext): Promise<BrandingResult> {
-  const { targetDir, recipe, logger, dryRun } = ctx;
+  const { targetDir, recipe, names, logger, dryRun } = ctx;
   const mode: BrandingMode = recipe.features.easterEggs ? 'keep' : 'neutral';
 
   if (mode === 'keep') {
@@ -1089,6 +1089,35 @@ export async function applyBranding(ctx: GeneratorContext): Promise<BrandingResu
     );
     if (after === before) continue;
 
+    filesRewritten += 1;
+    if (!dryRun) await writeText(assertWithin(targetDir, entry.path), after);
+  }
+
+  // ── A chave de marca nos catálogos de i18n.
+  //
+  // As regras de frase são escritas contra o texto em inglês, então em `en-US.json` a
+  // chave da assinatura da marca — `"Don't Panic."` — vira string VAZIA, e em
+  // `pt-BR.json` o valor traduzido ("Não entre em pânico.") não casa nenhuma delas e
+  // sobrevive inteiro. O resultado é o pior dos dois: um idioma sem texto e o outro
+  // ainda com o tema, num projeto que pediu para não ter tema. E o teste de paridade do
+  // boilerplate (`messages.test.ts > has no empty string translations`) falha — com
+  // razão: string vazia num catálogo renderiza nada na tela.
+  //
+  // A chave em si é contrato e fica (o call site é o mesmo literal, renomeado pela regra
+  // `camel` do motor). O que muda é o valor: passa a ser o nome do projeto, que é
+  // exatamente o que aquele lugar da interface quer dizer — era a assinatura da marca.
+  const arquivosDeMensagem = files.filter((e) => /\/messages\/[\w-]+\.json$/.test(e.rel));
+  for (const entry of arquivosDeMensagem) {
+    const before = await readText(entry.path);
+    // A chave já foi renomeada para o camel do projeto pelo motor de rename, que corre
+    // antes deste passo.
+    const chave = new RegExp(`("${names.camel}"\\s*:\\s*)"[^"]*"`);
+    if (!chave.test(before)) continue;
+
+    const after = before.replace(chave, `$1${JSON.stringify(names.human)}`);
+    if (after === before) continue;
+
+    counts.set('brandKey', (counts.get('brandKey') ?? 0) + 1);
     filesRewritten += 1;
     if (!dryRun) await writeText(assertWithin(targetDir, entry.path), after);
   }

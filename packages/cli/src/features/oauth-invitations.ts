@@ -153,7 +153,11 @@ export const oauthManifest: FeatureManifest = {
     },
     {
       file: 'apps/api/src/modules/auth/services/auth.service.ts',
-      kind: 'dropBlockWithLeadingDoc',
+      // `dropBlock`, não `dropBlockWithLeadingDoc`: o bloco cabe INTEIRO dentro de um
+      // comentário (é um parágrafo, não um símbolo). O outro kind sobe absorvendo o
+      // doc-comment de cima — que aqui é este mesmo comentário —, come a abertura e
+      // deixa o fechamento órfão, o que torna o arquivo sintaticamente inválido.
+      kind: 'dropBlock',
       block: {
         start: "Public because password login is no longer the only way",
         end: "the copy is the one that stops getting the fixes\\.",
@@ -328,7 +332,11 @@ export const oauthManifest: FeatureManifest = {
     },
     {
       file: 'apps/web/src/lib/auth-config.ts',
-      kind: 'dropBlockWithLeadingDoc',
+      // `dropBlock`, não `dropBlockWithLeadingDoc`: o bloco cabe INTEIRO dentro de um
+      // comentário (é um parágrafo, não um símbolo). O outro kind sobe absorvendo o
+      // doc-comment de cima — que aqui é este mesmo comentário —, come a abertura e
+      // deixa o fechamento órfão, o que torna o arquivo sintaticamente inválido.
+      kind: 'dropBlock',
       block: {
         start: "`NEXT_PUBLIC_OAUTH_PROVIDERS` vs the providers the API actually has keys",
         end: "broken page, not a login\\.",
@@ -412,10 +420,16 @@ export const oauthManifest: FeatureManifest = {
     },
     {
       file: 'apps/web/src/app/(auth)/login/page.tsx',
-      kind: 'dropLinesMatching',
-      pattern: "^\\s*(TWO_FACTOR_TICKET_COOKIE|oauthErrorCodeSchema),\\s*$",
+      // Era `dropLinesMatching` com âncora de "um especificador por linha", e no template
+      // esse import é de UMA linha (`import { loginSchema, oauthErrorCodeSchema, type
+      // LoginInput, type LoginResponse } from '@dontpanic/shared';`). A costura não casava
+      // nada e o `oauthErrorCodeSchema` ia inteiro para o gerado, onde o shared já não o
+      // exporta — `TS2305` no pacote contra o qual api e web compilam.
+      kind: 'dropImportSpecifier',
+      pattern: '^(TWO_FACTOR_TICKET_COOKIE|oauthErrorCodeSchema)$',
+      target: '@dontpanic/shared',
       reason:
-        'Named imports de `@dontpanic/shared` que apontam para símbolos apagados. `loginSchema`, `LoginInput` e `LoginResponse` ficam no mesmo import. Provenance: map 316.',
+        'Named imports de `@dontpanic/shared` que apontam para símbolos apagados. `loginSchema`, `LoginInput` e `LoginResponse` ficam no mesmo import — por isso o especificador sai, não o statement. Provenance: map 316.',
     },
     {
       file: 'apps/web/src/app/(auth)/login/page.tsx',
@@ -467,13 +481,38 @@ export const oauthManifest: FeatureManifest = {
       reason:
         'Call site do botão social na tela de login (um dos dois que existem no app; o outro é o signup). Provenance: map 322.',
     },
+    // Era `manualRewrite` — um no-op que só avisava. Consequência medida no projeto
+    // gerado: 7 dos 9 testes de web falhando, porque os `describe` de oauth continuavam
+    // exercitando `<OAuthButtons>` e o handoff por cookie, ambos apagados. Um deliverable
+    // com suíte vermelha no primeiro `pnpm test` é pior que um sem os testes.
+    //
+    // O motivo original para não cortar por regex era o piso `statements: 99` do
+    // `vitest.config.mts` medido COM a tela de oauth. Isso deixou de valer: o
+    // `sync-template` já afrouxa os pisos e a costura `relaxCoverageThresholds` cuida do
+    // resto, então remover os blocos é agora a opção certa — e a única que gera verde.
     {
       file: 'apps/web/src/app/(auth)/login/login.test.tsx',
-      kind: 'manualRewrite',
-      pattern: "TWO_FACTOR_TICKET_COOKIE|oauth",
-      replacement: 'login.test.oauth-off',
+      kind: 'dropBlock',
+      block: { start: "describe\\('LoginPage — social sign-in'", end: '\\}\\);' },
       reason:
-        'Saem o stub de mensagens `oauth:` (linha 66), o teste do botão (285-302) e os quatro testes do handoff por cookie (339-392) — mas o arquivo está dentro do glob de cobertura `src/app/(auth)/login/**/*.tsx` (vitest.config.mts:35) e cobre a tela de login inteira, que sobrevive. Tesoura por regex aqui derruba o piso `statements: 99`. Provenance: map 323.',
+        'Os três testes de `<OAuthButtons>` e de tradução do `?error=` (login.test.tsx:284-338). O componente sai em `deletePaths`, então sem esta costura o arquivo importa um módulo inexistente e a suíte do web nem carrega. Provenance: map 323.',
+    },
+    {
+      file: 'apps/web/src/app/(auth)/login/login.test.tsx',
+      kind: 'dropBlock',
+      block: {
+        start: "describe\\('LoginPage — second factor after social sign-in'",
+        end: '\\}\\);',
+      },
+      reason:
+        'Os quatro testes do handoff OAuth→2FA por cookie (login.test.tsx:340-392): leem `TWO_FACTOR_TICKET_COOKIE`, que sai de `@dontpanic/shared` com o oauth. É o desvio de 2FA do callback (I5) — existe só quando há callback social. Provenance: map 323.',
+    },
+    {
+      file: 'apps/web/src/app/(auth)/login/login.test.tsx',
+      kind: 'dropBalancedBlock',
+      pattern: '^\\s*oauth:\\s*\\{',
+      reason:
+        'O stub do namespace de mensagens `oauth` na fixture (login.test.tsx:66-…). Sai junto com as chaves `auth.oauth.*` dos dois catálogos; deixá-lo é um stub de tradução que nenhum componente pede. Provenance: map 323.',
     },
     {
       file: 'apps/web/src/app/(auth)/signup/page.tsx',
@@ -491,13 +530,23 @@ export const oauthManifest: FeatureManifest = {
       reason:
         'Segundo e último call site do botão social. O `intent=signup` é o que distingue "identidade nova vira empresa a nomear" de "identidade nova recebe `no_account`" no login. Provenance: map 324.',
     },
+    // Mesma correção do `login.test.tsx`: era `manualRewrite` e deixava um teste vermelho.
     {
       file: 'apps/web/src/app/(auth)/signup/signup.test.tsx',
-      kind: 'manualRewrite',
-      pattern: "NEXT_PUBLIC_OAUTH_PROVIDERS|oauth",
-      replacement: 'signup.test.oauth-off',
+      kind: 'dropBlock',
+      block: {
+        start: "it\\('offers the social buttons with intent=signup when registration is on'",
+        end: '\\}\\);',
+      },
       reason:
-        'Stub de mensagens `oauth:` (53) e o teste do botão sob `NEXT_PUBLIC_OAUTH_PROVIDERS` (113,121,125) saem; o resto do arquivo testa o formulário de signup, que sobrevive. Provenance: map 325.',
+        'O teste que afirma o `href` de `/api/auth/oauth/google/start?intent=signup` (signup.test.tsx:120-127) — rota que a API deixa de servir. O teste vizinho ("offers no social buttons on the closed state either") FICA: ele afirma AUSÊNCIA de botão, continua verdadeiro sem oauth, e pertence a public-signup. Provenance: map 325.',
+    },
+    {
+      file: 'apps/web/src/app/(auth)/signup/signup.test.tsx',
+      kind: 'dropBalancedBlock',
+      pattern: '^\\s*oauth:\\s*\\{',
+      reason:
+        'O stub do namespace `oauth` na fixture de mensagens (signup.test.tsx:53-…). Provenance: map 325.',
     },
 
     // ── web · i18n — os dois arquivos em lock-step (regra global 1) ──────────────

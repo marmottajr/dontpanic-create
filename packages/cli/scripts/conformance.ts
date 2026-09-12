@@ -296,11 +296,22 @@ async function run(
 function errorText(err: unknown): string {
   if (typeof err === 'object' && err !== null) {
     const e = err as { stderr?: string; stdout?: string; message?: string };
-    // `String(err)` num objeto sem `toString` próprio rende "[object Object]" — e é
-    // exatamente no caso sem stderr/stdout/message que a mensagem precisaria ajudar.
-    const text = e.stderr || e.stdout || e.message || JSON.stringify(err);
-    // As últimas linhas são onde está a causa; o começo é ruído de progresso.
-    return text.split('\n').slice(-25).join('\n');
+
+    // stdout E stderr, nesta ordem, em vez de "stderr senão stdout".
+    //
+    // O turbo escreve o erro real das tarefas no STDOUT e deixa no stderr apenas o
+    // wrapper ("command ... exited (1)"). Preferir stderr produzia um relatório que
+    // dizia que `pnpm build` falhou e não dizia por quê — uma falha de conformidade
+    // indepurável, que é quase tão ruim quanto não ter o portão.
+    const partes = [e.stdout, e.stderr].filter((t): t is string => Boolean(t?.trim()));
+    const text = partes.length > 0 ? partes.join('\n') : (e.message ?? JSON.stringify(err));
+
+    // As linhas que interessam são as que mencionam erro, mais o fim da saída.
+    const linhas = text.split('\n');
+    const comErro = linhas.filter((l) => /error|ERR_|✖|✗|failed|Cannot find|TS\d{4}/i.test(l));
+    const cauda = linhas.slice(-15);
+    const escolhidas = [...new Set([...comErro.slice(0, 30), ...cauda])];
+    return escolhidas.join('\n');
   }
   return String(err);
 }

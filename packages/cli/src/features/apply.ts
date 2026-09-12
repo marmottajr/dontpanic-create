@@ -29,11 +29,18 @@ import { join } from 'node:path';
 import { assertWithin, listFiles, pathExists, readText, writeText } from '../util/fs.ts';
 import type { FeatureId, GeneratorContext, Recipe, SeamEdit, SeamKind } from '../types.ts';
 import { FEATURE_IDS } from '../types.ts';
-import { applySeam, assertFileStillValid, SeamStructureError } from '../seams/index.ts';
-import { assertNoOrphanRelations } from '../seams/prisma-schema.ts';
+import { applySeam, assertFileStillValid, findArraySpan, SeamStructureError } from '../seams/index.ts';
+import {
+  assertNoOrphanRelations,
+  dropBlocks as dropPrismaBlocks,
+  dropEnumValue as dropPrismaEnumValue,
+  dropFields as dropPrismaFields,
+  tightenField as tightenPrismaField,
+} from '../seams/prisma-schema.ts';
 import {
   DOC_TRUTH_SEAMS,
   FEATURE_MANIFESTS,
+  FILES_ORPHANED_BY_FEATURE_PAIRS,
   GHOST_DEPS,
   GHOST_DEP_SEAMS,
   LOCAL_STORAGE_STATIC_FIX,
@@ -148,21 +155,43 @@ export class AlwaysOnError extends Error {
  * Mantido minúsculo de propósito. Um manifesto com linguagem de template dentro vira o
  * `{{#if}}` que o ADR 0001 rejeitou, só num arquivo diferente.
  */
-export function expandPlaceholders(text: string, recipe: Recipe): string {
-  const surviving = recipe.i18n.defaultLocale;
-  const dropped = recipe.i18n.locales.filter((locale) => locale !== surviving);
+export function expandPlaceholders(
+  text: string,
+  recipe: Recipe,
+  /**
+   * A TAG do catálogo que sobreviveu (`pt-BR`), quando ela é conhecida.
+   *
+   * A receita fala `pt`; o catálogo e o `locales.ts` falam `pt-BR`. Expandir o
+   * placeholder com o valor CRU da receita produzia `defaultLocale: 'pt'` num
+   * `locales.ts` cujo array é `['pt-BR']`, e o build do Next quebrava em
+   * `i18n/request.ts` com `Can't resolve '../../messages/pt.json'` — um arquivo que nunca
+   * existiu. A tag real vem da varredura de `apps/web/messages`.
+   */
+  localeTag?: string,
+): string {
+  const surviving = localeTag ?? recipe.i18n.defaultLocale;
+  const dropped = recipe.i18n.locales.filter((locale) => locale !== recipe.i18n.defaultLocale);
 
   return text
     .replace(/\{\{i18n\.defaultLocale\}\}/g, surviving)
     // `EmailLocale` é a chave estreita do segundo sistema bilíngue, o da API
     // (`email-templates.ts:13-32`): `pt-BR` ou `en`, não a tag BCP 47 inteira.
     .replace(/\{\{i18n\.emailLocale\}\}/g, emailLocaleOf(surviving))
-    .replace(/\{\{i18n\.droppedEmailLocaleKey\}\}/g, emailLocaleOf(dropped[0] ?? 'en'));
+    .replace(/\{\{i18n\.droppedEmailLocaleKey\}\}/g, emailLocaleOf(dropped[0] ?? 'en'))
+    // A TAG completa do catálogo descartado (`en-US`), para as costuras que removem a
+    // entrada dele de um mapa indexado por tag — `localeMeta` em `locales.ts`.
+    .replace(/\{\{i18n\.droppedLocaleTag\}\}/g, catalogueTagOf(dropped[0] ?? 'en'));
 }
 
 /** `pt-BR` → `pt-BR`; `en-US` → `en`. A tabela `STRINGS` da API usa essas duas chaves. */
 function emailLocaleOf(locale: string): string {
   return locale.startsWith('pt') ? 'pt-BR' : 'en';
+}
+
+/** `pt` → `pt-BR`; `en` → `en-US`. As tags dos catálogos do template. */
+function catalogueTagOf(locale: string): string {
+  if (locale.includes('-')) return locale;
+  return locale.startsWith('pt') ? 'pt-BR' : 'en-US';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -222,15 +251,43 @@ export async function applyFeatureRemoval(
     }
   }
 
+  // Arquivos que só ficam órfãos quando um PAR de features sai junto — o caso do
+  // `auth-config.ts`, cujas duas únicas metades são oauth e public-signup. Nenhum dos
+  // dois manifestos pode declarar isso sozinho sem apagar o arquivo cedo demais.
+  for (const rule of FILES_ORPHANED_BY_FEATURE_PAIRS) {
+    if (!rule.when.every((id) => order.includes(id))) continue;
+    for (const path of rule.paths) {
+      const deleted = await deletePath(templateDir, path, dryRun);
+      if (deleted.length === 0) continue;
+      result.filesDeleted.push(...deleted);
+      result.warnings.push(`Órfão por combinação (${rule.when.join(' + ')}): ${path} — ${rule.reason}`);
+    }
+  }
+
   // ── 4. Modo single-tenant e single-language: o que o manifesto não expressa ─
-  await pruneLocaleCatalogues(ctx, result);
+  const localeTag = await pruneLocaleCatalogues(ctx, result);
+
+  // Assimetria conhecida do manifesto de i18n: algumas costuras de spec nomeiam os testes
+  // do idioma DESCARTADO, e as âncoras foram escritas assumindo que o descartado é o
+  // inglês — o que vale para os quatro presets, todos com `defaultLocale: 'pt'`. Com outro
+  // idioma default, aquelas costuras não casam (são `required: false`) e a suíte do projeto
+  // gerado nasce vermelha em dois testes de e-mail. Avisar alto é melhor que gerar assim em
+  // silêncio; o conserto é escrever as âncoras espelhadas no manifesto.
+  if (!recipe.features.i18n && localeTag !== undefined && !localeTag.startsWith('pt')) {
+    result.warnings.push(
+      `Idioma único "${localeTag}": as costuras de spec de i18n foram escritas para o caso ` +
+        `em que o INGLÊS é o idioma descartado (é o dos quatro presets). Com "${localeTag}" ` +
+        `como default, revise \`invitation-email.spec.ts\` no projeto gerado — dois testes ` +
+        `comparam o assunto do e-mail com string exata e podem falhar.`,
+    );
+  }
 
   // ── 5. Costuras, agrupadas por arquivo ────────────────────────────────────
   const byFile = new Map<string, { feature: FeatureId | '(incondicional)'; seam: SeamEdit }[]>();
 
   for (const id of order) {
     for (const seam of FEATURE_MANIFESTS[id].seams ?? []) {
-      const file = expandPlaceholders(seam.file, recipe);
+      const file = expandPlaceholders(seam.file, recipe, localeTag);
       const bucket = byFile.get(file) ?? [];
       bucket.push({ feature: id, seam });
       byFile.set(file, bucket);
@@ -313,7 +370,7 @@ export async function applyFeatureRemoval(
     let touched = false;
 
     for (const { feature, seam } of edits) {
-      const expanded = expandSeam(seam, recipe);
+      const expanded = expandSeam(seam, recipe, localeTag);
       let outcome;
       try {
         outcome = applySeam(expanded, content, { asset: () => undefined });
@@ -407,16 +464,34 @@ export async function applyFeatureRemoval(
 
   if (required.length > 0) throw new SeamMismatchError(required);
 
-  // ── 6. Prisma: relação órfã antes de escrever qualquer coisa a mais ───────
+  // ── 6. Schema Prisma: models, enums, campos e nullability ─────────────────
+  //
+  // DEPOIS das costuras, e a ordem foi aprendida na prática. O §5 do mapa põe a poda do
+  // schema como passo 2, antes da poda da API — mas isso é sobre o ESTADO FINAL, porque
+  // quem consome o schema é o `prisma generate` e o montador da baseline, os dois depois
+  // deste módulo inteiro. A ordem aqui dentro é livre, e há uma razão forte para o
+  // estruturado vir por último:
+  //
+  // as costuras usam o conteúdo PRISTINO do arquivo como oráculo para distinguir
+  // "manifesto envelheceu" de "outra feature chegou antes" (ver `cause`). Rodando o passo
+  // estruturado primeiro, ele ESCREVE no disco, o pristino deixa de ser pristino, e duas
+  // costuras legítimas de `plans` sobre `tenancy.prisma` passaram a ser classificadas
+  // como manifesto velho — matando a geração do preset `minimal`.
+  await prunePrismaSchema(ctx, order, result);
+
+  // ── 7. A allowlist de @SystemScope() é RECALCULADA, nunca copiada ─────────
+  await recomputeSystemScopeAllowlist(ctx, result);
+
+  // ── 8. Prisma: relação órfã antes de escrever qualquer coisa a mais ───────
   await assertPrismaIntact(templateDir, result);
 
-  // ── 7. Deps npm ───────────────────────────────────────────────────────────
+  // ── 9. Deps npm ───────────────────────────────────────────────────────────
   await removeDependencies(ctx, order, result);
 
-  // ── 8. Docs: o projeto gerado não documenta o que não tem ─────────────────
+  // ── 10. Docs: o projeto gerado não documenta o que não tem ───────────────
   await pruneDocSections(ctx, order, result);
 
-  // ── 9. Inventário que outros passos consomem ─────────────────────────────
+  // ── 11. Inventário que outros passos consomem ────────────────────────────
   for (const id of order) {
     const manifest = FEATURE_MANIFESTS[id];
     result.composeServices.push(...(manifest.composeServices ?? []));
@@ -458,18 +533,14 @@ function matchedPristine(edit: SeamEdit, original: string): boolean {
   }
 }
 
-function expandSeam(seam: SeamEdit, recipe: Recipe): SeamEdit {
-  const out: SeamEdit = { ...seam, file: expandPlaceholders(seam.file, recipe) };
-  if (seam.pattern !== undefined) out.pattern = expandPlaceholders(seam.pattern, recipe);
-  if (seam.replacement !== undefined) {
-    out.replacement = expandPlaceholders(seam.replacement, recipe);
-  }
-  if (seam.target !== undefined) out.target = expandPlaceholders(seam.target, recipe);
+function expandSeam(seam: SeamEdit, recipe: Recipe, localeTag?: string): SeamEdit {
+  const ex = (text: string): string => expandPlaceholders(text, recipe, localeTag);
+  const out: SeamEdit = { ...seam, file: ex(seam.file) };
+  if (seam.pattern !== undefined) out.pattern = ex(seam.pattern);
+  if (seam.replacement !== undefined) out.replacement = ex(seam.replacement);
+  if (seam.target !== undefined) out.target = ex(seam.target);
   if (seam.block !== undefined) {
-    out.block = {
-      start: expandPlaceholders(seam.block.start, recipe),
-      end: expandPlaceholders(seam.block.end, recipe),
-    };
+    out.block = { start: ex(seam.block.start), end: ex(seam.block.end) };
   }
   return out;
 }
@@ -543,6 +614,242 @@ export function globToRegExp(glob: string): RegExp {
 }
 
 /**
+ * Reescreve a lista esperada de rotas com `@SystemScope()` a partir do que SOBROU.
+ *
+ * Isto é a regra 2 do §0 do mapa, e ela é categórica: *"the `@SystemScope()` allowlist
+ * test is computed, not copied"*. O spec
+ * `apps/api/src/infra/tenancy/system-scope.decorator.spec.ts` varre a árvore da API,
+ * conta os `@SystemScope()` por arquivo e compara com um array literal. Toda feature que
+ * possui uma rota com esse decorator muda a contagem:
+ *
+ *  - `publicSignup` tira `signup` → `auth.controller.ts` cai de 8 para 7;
+ *  - `oauth` tira a linha inteira de `oauth.controller.ts:1`;
+ *  - `invitations` tira `public-invitations.controller.ts:2`.
+ *
+ * Emitir o array do repo num projeto podado dá suíte VERMELHA num clone novo. E o conserto
+ * óbvio — apagar o teste — destrói a proteção que impede a lista de crescer sem alguém
+ * pensar, que é justamente o que esse teste existe para fazer: `@SystemScope()` ignora o
+ * isolamento entre empresas, e o mapa é explícito que numa rota de negócio isso é bug de
+ * segurança.
+ *
+ * Então recalculamos: varremos a árvore gerada exatamente como o spec varre, e reescrevemos
+ * o array com o resultado. O teste continua sendo um portão, e passa por construção na
+ * primeira execução — que é a única forma de ele não ser editado no primeiro dia.
+ */
+async function recomputeSystemScopeAllowlist(
+  ctx: GeneratorContext,
+  result: FeatureRemovalResult,
+): Promise<void> {
+  const { templateDir, dryRun } = ctx;
+  const rel = 'apps/api/src/infra/tenancy/system-scope.decorator.spec.ts';
+  const abs = assertWithin(templateDir, rel);
+  if (!(await pathExists(abs))) return;
+
+  const srcRoot = join(templateDir, 'apps/api/src');
+  if (!(await pathExists(srcRoot))) return;
+
+  // A MESMA contagem que o spec faz: ocorrências de `@SystemScope()` no início da linha.
+  const entries: string[] = [];
+  for (const entry of await listFiles(srcRoot)) {
+    if (!entry.rel.endsWith('.ts') || entry.rel.endsWith('.spec.ts')) continue;
+    const uses = (await readText(entry.path)).match(/^\s*@SystemScope\(\)/gm);
+    if (uses) entries.push(`${entry.rel}:${uses.length}`);
+  }
+  entries.sort();
+
+  const content = await readText(abs);
+  const span = findArraySpan(content, 'toEqual');
+  // `findArraySpan` procura `<prop>: [`; aqui a forma é `toEqual([`, então caímos no
+  // localizador genérico de `expect(found.sort()).toEqual([ … ])`.
+  const open = span?.open ?? content.indexOf('toEqual([');
+  if (open === -1) {
+    result.warnings.push(
+      `Não achei o array esperado em ${rel}: a allowlist de @SystemScope() NÃO foi ` +
+        `recalculada, e a suíte do projeto gerado vai falhar nesse teste. ` +
+        `Conserto: reabrir a regra 2 do §0 do mapa contra o spec novo.`,
+    );
+    return;
+  }
+
+  const bracket = content.indexOf('[', open);
+  const close = matchingBracket(content, bracket);
+  if (close === -1) {
+    result.warnings.push(`Array de @SystemScope() malformado em ${rel}; não recalculado.`);
+    return;
+  }
+
+  const indent = '      ';
+  const body =
+    entries.length === 0
+      ? ''
+      : `\n${indent}// Recalculado pelo gerador a partir das rotas que sobraram: cada\n` +
+        `${indent}// \`@SystemScope()\` ignora o isolamento entre empresas, e esta lista é o\n` +
+        `${indent}// portão que impede que ela cresça sem alguém pensar.\n` +
+        entries.map((item) => `${indent}'${item}',`).join('\n') +
+        `\n    `;
+
+  const next = `${content.slice(0, bracket + 1)}${body}${content.slice(close)}`;
+  if (!dryRun) await writeText(abs, next);
+
+  result.seamsApplied.push({
+    file: rel,
+    kind: 'replace',
+    pattern: '@SystemScope() allowlist (recalculada)',
+    feature: '(incondicional)',
+    changes: entries.length,
+  });
+  result.warnings.push(
+    `Allowlist de @SystemScope() recalculada: ${entries.length} arquivo(s) — ` +
+      `${entries.join(', ') || '(nenhum)'}.`,
+  );
+}
+
+/** Fechamento do `[` em `open`, contando aninhamento. */
+function matchingBracket(text: string, open: number): number {
+  let depth = 0;
+  for (let i = open; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '[') depth += 1;
+    else if (ch === ']') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Aplica o bloco `prisma` de cada feature removida: arquivos, blocos, campos e nullability.
+ *
+ * Este passo existia só no manifesto: o campo `prisma` era declarado por seis features e
+ * NINGUÉM o consumia, então cada `dropBlocks`/`dropFields`/`tighten` era dado morto. O
+ * sintoma foi caro e nada óbvio — o `tighten` do `User.passwordHash` não acontecia, o
+ * schema seguia com `passwordHash String?`, o `@prisma/client` tipava a coluna como
+ * `string | null`, e as quatro chamadas de `verifyPassword` falhavam com `TS2345` em
+ * arquivos que não mencionam oauth. O erro aponta para o CHAMADOR; a causa está no schema.
+ *
+ * A ordem interna também é forçada:
+ *
+ *  1. **`dropFiles`** — um arquivo de schema inteiro (`oauth.prisma`, `invitations.prisma`)
+ *     sai antes de qualquer edição, senão as relações inversas seriam removidas de um
+ *     arquivo que ainda declara o model.
+ *  2. **`dropBlocks`** — `model`/`enum` que sobrevivem num arquivo compartilhado.
+ *  3. **`dropFields`** — as relações INVERSAS nos models que ficam. O Prisma recusa
+ *     validar um campo de relação cujo model-alvo não existe, e o erro culpa o model que
+ *     SOBROU. Por isso `assertNoOrphanRelations` roda depois de tudo.
+ *  4. **`dropEnumValues`** — valor de enum que perde o dono (`Role.SUPERADMIN` sem
+ *     `platform`).
+ *  5. **`tighten`** — por último, porque estreitar depende de o campo ainda existir.
+ */
+async function prunePrismaSchema(
+  ctx: GeneratorContext,
+  order: readonly FeatureId[],
+  result: FeatureRemovalResult,
+): Promise<void> {
+  const { templateDir, dryRun } = ctx;
+  const schemaDir = join(templateDir, 'apps/api/prisma/schema');
+  if (!(await pathExists(schemaDir))) return;
+
+  // 1 · arquivos de schema inteiros
+  for (const id of order) {
+    for (const rel of FEATURE_MANIFESTS[id].prisma?.dropFiles ?? []) {
+      const deleted = await deletePath(templateDir, rel, dryRun);
+      if (deleted.length === 0) {
+        result.warnings.push(`[${id}] arquivo de schema já ausente: ${rel}`);
+        continue;
+      }
+      result.filesDeleted.push(...deleted);
+    }
+  }
+
+  // Os arquivos que sobraram, editados em memória e escritos uma vez cada.
+  const files = (await listFiles(schemaDir)).filter((entry) => entry.rel.endsWith('.prisma'));
+  const buffers = new Map<string, { rel: string; abs: string; content: string; touched: boolean }>();
+  for (const entry of files) {
+    buffers.set(entry.rel, {
+      rel: `apps/api/prisma/schema/${entry.rel}`,
+      abs: entry.path,
+      content: await readText(entry.path),
+      touched: false,
+    });
+  }
+
+  /** Aplica `edit` no primeiro arquivo em que ele casar. */
+  const applyToSchema = (
+    id: FeatureId,
+    kind: SeamKind,
+    label: string,
+    edit: (content: string) => { matched: boolean; content: string; changes: number },
+  ): void => {
+    for (const buffer of buffers.values()) {
+      const out = edit(buffer.content);
+      if (!out.matched) continue;
+      buffer.content = out.content;
+      buffer.touched = true;
+      result.seamsApplied.push({
+        file: buffer.rel,
+        kind,
+        pattern: label,
+        feature: id,
+        changes: out.changes,
+      });
+      return;
+    }
+    // Não casou em arquivo nenhum. Não é fatal: outra feature removida pode ter levado o
+    // model inteiro (e aí não há campo a remover). Mas vai ao relatório, porque um
+    // `tighten` que não acontece só aparece como `TS2345` no chamador, muito depois.
+    result.seamsSkipped.push({
+      file: 'apps/api/prisma/schema/**',
+      kind,
+      pattern: label,
+      feature: id,
+      cause: 'sem-casamento',
+      reason: `nenhum arquivo de schema contém ${label}`,
+    });
+  };
+
+  for (const id of order) {
+    const prisma = FEATURE_MANIFESTS[id].prisma;
+    if (!prisma) continue;
+
+    // 2 · models e enums
+    for (const name of prisma.dropBlocks ?? []) {
+      applyToSchema(id, 'dropPrismaBlock', name, (content) => dropPrismaBlocks(content, [name]));
+    }
+
+    // 3 · campos (as relações inversas)
+    for (const entry of prisma.dropFields ?? []) {
+      for (const field of entry.fields) {
+        applyToSchema(id, 'dropPrismaField', `${entry.model}.${field}`, (content) =>
+          dropPrismaFields(content, entry.model, [field]),
+        );
+      }
+    }
+
+    // 4 · valores de enum
+    for (const entry of prisma.dropEnumValues ?? []) {
+      for (const value of entry.values) {
+        applyToSchema(id, 'dropPrismaEnumValue', `${entry.enum}.${value}`, (content) =>
+          dropPrismaEnumValue(content, entry.enum, value),
+        );
+      }
+    }
+
+    // 5 · nullability
+    for (const entry of prisma.tighten ?? []) {
+      applyToSchema(id, 'tightenPrismaField', `${entry.model}.${entry.field}`, (content) =>
+        tightenPrismaField(content, entry.model, entry.field),
+      );
+    }
+  }
+
+  for (const buffer of buffers.values()) {
+    if (!buffer.touched || dryRun) continue;
+    await writeText(buffer.abs, buffer.content);
+  }
+}
+
+/**
  * Modo single-language: apaga os catálogos que não sobrevivem.
  *
  * Não está em `deletePaths` porque o manifesto não pode saber QUAL sobrevive — os dois
@@ -556,10 +863,10 @@ export function globToRegExp(glob: string): RegExp {
 async function pruneLocaleCatalogues(
   ctx: GeneratorContext,
   result: FeatureRemovalResult,
-): Promise<void> {
+): Promise<string | undefined> {
   const { recipe, templateDir, dryRun } = ctx;
   const messagesDir = join(templateDir, 'apps/web/messages');
-  if (!(await pathExists(messagesDir))) return;
+  if (!(await pathExists(messagesDir))) return undefined;
 
   const catalogues = (await listFiles(messagesDir))
     .filter((entry) => entry.rel.endsWith('.json'))
@@ -578,8 +885,15 @@ async function pruneLocaleCatalogues(
       `Nenhum catálogo de mensagens casa com os idiomas pedidos (${[...keep].join(', ')}); ` +
         `os catálogos do template (${catalogues.join(', ')}) foram mantidos intactos.`,
     );
-    return;
+    return undefined;
   }
+
+  // A tag do catálogo que corresponde ao idioma DEFAULT da receita — é ela que as
+  // costuras precisam, não o `pt` cru.
+  const defaultTag = survivors.find(
+    (tag) =>
+      tag === recipe.i18n.defaultLocale || tag.startsWith(`${recipe.i18n.defaultLocale}-`),
+  );
 
   for (const tag of catalogues) {
     if (survivors.includes(tag)) continue;
@@ -602,6 +916,8 @@ async function pruneLocaleCatalogues(
       );
     }
   }
+
+  return defaultTag;
 }
 
 /**
@@ -660,7 +976,7 @@ async function removeDependencies(
     byWorkspace.set(entry.workspace, bucket);
   }
 
-  const { dropDependency } = await import('../seams/json-file.ts');
+  const { dropDependency, upsertDependency } = await import('../seams/json-file.ts');
 
   for (const [workspace, names] of [...byWorkspace.entries()].sort()) {
     const rel = workspace === '.' ? 'package.json' : `${workspace}/package.json`;
@@ -688,6 +1004,36 @@ async function removeDependencies(
       result.depsRemoved.push({ workspace, name });
     }
     if (touched && !dryRun) await writeText(abs, content);
+  }
+
+  // I17 · a dep que VOLTA, depois de toda a poda.
+  //
+  // `@fastify/static` está em `GHOST_DEPS` (declarada e nunca importada), então acabou de
+  // ser removida acima. Num build de storage `local` ela é necessária de verdade: a
+  // costura de `main.ts` registra o plugin, e sem a dep no `package.json` o
+  // `pnpm typecheck` do projeto gerado falha com `TS2307` no bootstrap.
+  //
+  // A ordem é o ponto: re-adicionar ANTES da poda faria a poda desfazer o conserto. Este
+  // bloco existia como dado (`LOCAL_STORAGE_STATIC_FIX.readdDeps`) e nunca era consumido —
+  // as costuras de código eram aplicadas e a dep não, o que é o pior dos dois mundos.
+  if (ctx.recipe.features.files && ctx.recipe.drivers.storage === 'local') {
+    for (const entry of LOCAL_STORAGE_STATIC_FIX.readdDeps) {
+      const rel = `${entry.workspace}/package.json`;
+      const abs = assertWithin(templateDir, rel);
+      if (!(await pathExists(abs))) continue;
+      let content = await readText(abs);
+      let touched = false;
+      for (const name of entry.add) {
+        const out = upsertDependency(content, 'dependencies', name, entry.version, rel);
+        if (!out.matched) {
+          result.warnings.push(`[I17] não consegui reintroduzir ${name} em ${rel}`);
+          continue;
+        }
+        content = out.content;
+        touched = true;
+      }
+      if (touched && !dryRun) await writeText(abs, content);
+    }
   }
 }
 

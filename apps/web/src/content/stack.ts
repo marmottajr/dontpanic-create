@@ -18,20 +18,10 @@ export const STACK = [
 ] as const;
 
 /**
- * As cinco trocas que são uma variável de ambiente, não um refactor.
- *
- * O banco NÃO está aqui de propósito. Trocá-lo exige mexer no `provider` do
- * `schema.prisma` e no driver adapter — não é uma variável —, e o gerador emite só
- * Postgres porque Row Level Security é dele. Listá-lo aqui tornaria falsa a única
- * frase que esta tabela existe para provar.
+ * A faixa de metadados do hero. Nomes próprios de tecnologia: não se traduz, e é o que
+ * um dev quer saber na primeira linha, antes de qualquer argumento.
  */
-export const PORTS = [
-  { port: 'StorageProvider', adapters: 's3 · local', env: 'STORAGE_DRIVER' },
-  { port: 'MailProvider', adapters: 'smtp · ses · console', env: 'MAIL_DRIVER' },
-  { port: 'CacheProvider', adapters: 'redis · memory', env: 'CACHE_DRIVER' },
-  { port: 'QueueProvider', adapters: 'bullmq · memory', env: 'QUEUE_DRIVER' },
-  { port: 'CaptchaProvider', adapters: 'turnstile · recaptcha · none', env: 'CAPTCHA_DRIVER' },
-] as const;
+export const HERO_META = 'Boilerplate SaaS · NestJS · Next.js · Prisma · Postgres';
 
 export const REPO_URL = 'https://github.com/marmottajr/dontpanic';
 export const NPM_PACKAGE = 'create-dontpanic';

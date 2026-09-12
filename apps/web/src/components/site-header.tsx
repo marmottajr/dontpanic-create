@@ -1,10 +1,22 @@
+'use client';
+
+import { useRef } from 'react';
+
+import { Shell } from './layout';
 import { LocaleSwitcher } from './locale-switcher';
-import { Shell } from './section';
 import { ThemeToggle } from './theme-toggle';
-import { REPO_URL } from '@/content/stack';
 import type { Locale } from '@/i18n/locales';
 import type { Messages } from '@/i18n/messages';
+import { useConfiguratorContext } from '@/lib/configurator-context';
 
+/**
+ * O cabeçalho.
+ *
+ * A marca em duas linhas à esquerda — "DON'T" sobre "PANIC", as duas com cinco letras,
+ * o que as faz alinhar nas duas margens sem truque. O botão âmbar de montar fica
+ * sempre visível, inclusive no telefone: é a única ação da página, e escondê-la atrás
+ * de um menu sanduíche a tornaria opcional.
+ */
 export function SiteHeader({
   locale,
   messages,
@@ -12,11 +24,12 @@ export function SiteHeader({
   locale: Locale;
   messages: Messages;
 }): React.ReactElement {
+  const { wizard } = useConfiguratorContext();
+  const button = useRef<HTMLButtonElement>(null);
   const { nav } = messages;
 
   const links = [
     { href: '#proof', text: nav.proof },
-    { href: '#build', text: nav.configure },
     { href: '#how', text: nav.how },
     { href: '#inside', text: nav.inside },
     { href: '#faq', text: nav.faq },
@@ -24,42 +37,34 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-30 border-b border-rule bg-bg/92 backdrop-blur-sm">
-      <Shell className="flex h-14 items-center gap-3">
-        <a
-          href="#top"
-          className="font-bold tracking-[0.02em] w-condensed text-[0.95rem] whitespace-nowrap"
-        >
-          DontPanic
+      <Shell className="flex h-16 items-center gap-2 sm:gap-4">
+        <a href="#top" className="masthead shrink-0 text-[13px] text-amber">
+          <span className="block">Don’t</span>
+          <span className="block">Panic</span>
         </a>
 
-        {/* Sem `aria-label`: é o único <nav> da página, e rotulá-lo com o texto de uma
-            das seções ("A prova") faria o leitor de tela anunciar a navegação inteira
-            pelo nome de um dos seus itens. */}
-        <nav className="ml-4 hidden flex-1 items-center gap-5 lg:flex">
+        <nav className="ml-6 hidden flex-1 items-center gap-6 lg:flex">
           {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-meta text-dim w-condensed hover:text-text"
-            >
+            <a key={link.href} href={link.href} className="text-small text-dim hover:text-ink">
               {link.text}
             </a>
           ))}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <a
-            href={REPO_URL}
-            rel="noreferrer noopener"
-            className="hidden text-meta text-dim w-condensed hover:text-text sm:block"
-          >
-            {nav.repo}
-          </a>
           <LocaleSwitcher current={locale} label={nav.languageLabel} />
           <ThemeToggle
             label={nav.themeLabel}
             options={{ light: nav.themeLight, dark: nav.themeDark, system: nav.themeSystem }}
           />
+          <button
+            ref={button}
+            type="button"
+            onClick={() => wizard.openWizard(button.current)}
+            className="shrink-0 whitespace-nowrap rounded-1 bg-amber px-4 py-2.5 text-small font-semibold text-on-amber hover:brightness-105"
+          >
+            {messages.wizard.open}
+          </button>
         </div>
       </Shell>
     </header>

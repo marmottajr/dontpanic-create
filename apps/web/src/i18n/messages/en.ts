@@ -10,7 +10,6 @@ export const en: Messages = {
   nav: {
     skipToContent: 'Skip to content',
     proof: 'The proof',
-    configure: 'Build the command',
     how: 'How it works',
     inside: "What's inside",
     faq: 'Questions',
@@ -27,9 +26,10 @@ export const en: Messages = {
     title:
       'The security decisions an AI gets silently wrong are already made, documented and tested.',
     lead: 'DontPanic is a full-stack SaaS boilerplate — NestJS, Next.js, Prisma, Postgres with real Row Level Security. Every security choice has already been made, is explained in the `CLAUDE.md` your agent reads before writing a line, and has a test that fails when someone undoes it. As a side effect, context goes into your product instead of rediscovering how refresh token rotation works.',
+    nameCta: 'Start',
     commandLabel: 'Command for the default preset',
-    commandNote: 'Needs Node 24 and pnpm. To pick the parts, build your own command below.',
-    ctaConfigure: 'Build my command',
+    commandNote:
+      'Needs Node 24 and pnpm. To pick the parts, answer the wizard — it is twelve questions.',
     ctaProof: 'See the mistakes this avoids',
     facts: [
       {
@@ -42,64 +42,61 @@ export const en: Messages = {
   },
 
   proof: {
+    eyebrow: 'Mistakes that pass review',
     title: 'The proof',
-    lead: 'None of this is hypothetical. These are mistakes that produce code which compiles, passes the tests and passes code review — and shows up months later, in a user who is not you. Each one is already decided in the boilerplate, with the reasoning written next to the decision.',
+    lead: 'None of this is hypothetical. These are mistakes that produce code which compiles, passes the tests and passes code review — and shows up months later, in a user who is not you. Each one is already decided in the boilerplate, with the reasoning beside the decision and the test named underneath.',
     labels: {
-      surface: 'Where it lives',
-      code: 'The code that passes review',
-      whyItPasses: 'Why nobody catches it',
       whatHappens: 'What happens',
       ours: 'In DontPanic',
+      seal: 'covered by tests',
+      cases: 'cases',
     },
     items: [
       {
         id: 'oauth-identity',
-        title: 'Matching a social identity by email address',
-        whyItPasses:
-          'It compiles, and it works for every login in your development environment. The test — which has exactly one user — passes. Review approves it, because this is how most OAuth tutorials do it.',
+        eyebrow: 'Social login',
+        title: 'A social identity matched by email address',
         whatHappens:
-          'Corporate addresses get recycled. Ana leaves, HR hands `ana@company.com` to the next hire, he signs in with Google and **inherits Ana’s account**: history, permissions, everything. Nobody broke in — the system did exactly what was written.',
+          'Corporate addresses get recycled. Ana leaves, HR hands `ana@company.com` to the next hire, he signs in with Google and **inherits Ana’s account**: history, permissions, everything. Nobody broke in — the system did exactly what was written, and the test, which had a single user, passed.',
         ours: 'The identity key is the immutable `providerAccountId` — `sub` on Google and Apple, the numeric id on GitHub — with `@@unique([provider, providerAccountId])`. The `email` column on `oauth_accounts` is for display and may be stale. And an address the provider did not mark as verified links nothing: the callback returns `unverified_email`.',
       },
       {
         id: 'oauth-2fa',
-        title: 'Issuing a session in the OAuth callback without checking the second factor',
-        whyItPasses:
-          'The `TwoFactorGateGuard` exists and is registered. It verifies that 2FA is *enabled* — never that *this* session went through it. The 2FA test covers the password flow, and the password flow is correct.',
+        eyebrow: 'Second factor',
+        title: 'A session issued in the OAuth callback without checking the second factor',
         whatHappens:
-          'Anyone who deliberately turned on TOTP discovers that “sign in with Google” never asks for the code. Social login becomes **strictly weaker** than typing the password, and the second factor turns optional for whoever knows which button to click.',
+          'Anyone who deliberately turned on the six-digit code discovers that “sign in with Google” never asks for it. Social login becomes **strictly weaker** than typing the password, and the second factor turns optional for whoever knows which button to click. The `TwoFactorGateGuard` does not catch it: it verifies that 2FA is *enabled*, never that *this* session went through it.',
         ours: 'If `twoFactorEnabled`, the callback does not issue a session: it creates the same ticket `POST /auth/login` would create, hands it over in a five-minute single-use cookie, and redirects to `/login?twofactor=1`. A cookie and not a query string — a query string lands in browser history, in the `Referer` header and in the logs of every proxy along the way.',
       },
       {
-        id: 'trust-proxy',
-        title: 'Turning on `trustProxy: true` to fix a spurious 429',
-        whyItPasses:
-          'It fixes the symptom immediately: rate limiting tells clients apart again, the 429 disappears, and the deploy ships with the problem solved. No test catches this, because tests do not forge headers.',
+        id: 'rls-where',
+        eyebrow: 'Isolation',
+        title: 'Isolation between companies left to the application’s `where`',
         whatHappens:
-          "Trusting every hop means accepting any `X-Forwarded-For` — and `X-Forwarded-For` is **not** on the fetch forbidden-headers list, so the browser can set it. A `fetch('/api/auth/login', { headers: { 'x-forwarded-for': randomIp() } })` earns a fresh bucket on every request, and the login rate limit stops existing. Counting hops from the left ends up in the same place: the load balancer appends, so in `X-Forwarded-For: <forged>, <real>` the first element is whatever the attacker typed.",
-        ours: '`CLIENT_IP_HEADER` and `CLIENT_IP_TRUSTED_HOPS`, counted **from the right**. The BFF strips every forwarding header coming from the browser and rewrites a single sanitised one. The default is zero hops: it sends no IP at all and treats everyone behind the proxy as one client — too restrictive, and not bypassable.',
+          'The guarantee has become human discipline, repeated in every query, by everyone who joins the team after you. The first `findUnique({ where: { id } })` by primary key — written in a hurry, or by an agent that did not know the rule — returns another company’s row. And it does not fail: **it returns data, with status 200**.',
+        ours: 'Isolation belongs to Postgres, not to the application: Row Level Security, with the scope declared by `SET LOCAL` inside the request transaction. With no scope at all, `current_setting(…, true)` returns NULL and the policy never matches — forgetting the scope yields an **empty** result, never the wrong company’s row. The application-level filter is still there, as a convenience; the guarantee is the one underneath.',
       },
       {
-        id: 'guard-scope',
-        title: 'Reading the database in a guard, before the tenant scope exists',
-        whyItPasses:
-          'Nest runs guards **before** interceptors. When the guard executes, the interceptor that opens the transaction with `SET LOCAL` has not run yet: `prisma.db` falls back to the base client, with no scope, and the RLS policy returns zero rows. It does not throw. Coverage green, 200 OK, nothing in the logs.',
+        id: 'password-reset',
+        eyebrow: 'Sessions',
+        title: 'A password reset that does not end the open sessions',
         whatHappens:
-          'The guard concludes “this user has no 2FA” and **lets the request through**. This is exactly how DontPanic’s own `TwoFactorGateGuard` became a silent no-op — the bug is in the repository history, and the lesson was written down next to it.',
-        ours: 'A guard that reads the database opens its own scope, with `this.prisma.forTenant(tenantId, …)` or `asPlatform`, and **fails closed** when the read comes back empty. The rule, with the bug’s story beside it, is in the multi-tenancy section of `CLAUDE.md` — the file your agent reads before writing the next guard.',
+          'People reset their password precisely because they suspect someone got in. The new hash invalidates nothing: the intruder’s refresh token **keeps renewing itself**, and he stays inside the account long after the change — indefinitely, as long as he keeps using the system.',
+        ours: '`resetPassword` writes the new password and burns the reset token in one transaction and then, after the commit, calls `revokeAllForUser` — every existing session dies, recorded in the audit trail as a deliberate logout. Rotating refresh closes the rest: an old token presented again revokes the whole family.',
       },
       {
         id: 'db-owner',
-        title: 'Pointing `DATABASE_URL` at the database owner',
-        whyItPasses:
-          'It is what the tutorial says, and it is the user the Postgres `docker compose` creates. Worse: your isolation tests pass, because they exercise the application-level filter — which is there, and is correct.',
+        eyebrow: 'Database',
+        title: '`DATABASE_URL` pointing at the database owner',
         whatHappens:
-          'A SUPERUSER — and any role with `BYPASSRLS` — ignores Row Level Security even with `FORCE ROW LEVEL SECURITY`. **Every policy becomes decoration**, and isolation between companies goes back to depending on no query ever forgetting a `where`, forever, in all future code.',
-        ours: 'The application connects as a restricted role, created `NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`; the owner lives only in `DATABASE_ADMIN_URL`, for `migrate` and `seed`. The API **refuses to boot** in production if it detects a superuser. And the e2e suite runs under the restricted role — which is what makes `tenant-isolation.e2e-spec.ts` prove something instead of restating the code’s intent.',
+          'A SUPERUSER — and any role with `BYPASSRLS` — ignores Row Level Security even with `FORCE ROW LEVEL SECURITY`. **Every policy becomes decoration**, and isolation goes back to depending on no query ever forgetting a `where`. Worse: your isolation tests pass, because they exercise the application filter, which is there and is correct.',
+        ours: 'The application connects as a restricted role, created `NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`; the owner lives only in `DATABASE_ADMIN_URL`, for `migrate` and `seed`. The API **refuses to boot** in production if it detects a superuser. And the e2e suite runs under the restricted role — which is what makes the isolation test prove something instead of restating the code’s intent.',
       },
     ],
-    moreTitle: 'Three more, same shape',
+    moreTitle: 'Five more, same shape',
     more: [
+      'Turning on `trustProxy: true` to make a spurious 429 go away. Trusting every hop means accepting any `X-Forwarded-For` — and the browser **can** set it, because it is not on the fetch forbidden-headers list: a fresh rate-limit bucket on every request. Here the IP is counted from the right, with `CLIENT_IP_TRUSTED_HOPS`, and the BFF strips every forwarding header coming from the browser.',
+      'Reading the database in a guard, before the tenant scope exists. Nest runs guards **before** interceptors, so the RLS policy returns zero rows, the guard concludes “this user has no 2FA” and lets the request through — no error, no log. Here, a guard that reads the database opens its own scope and fails closed.',
       'Sending the invitation email inside the transaction. A rollback hands out a valid link pointing at a company that does not exist, and leaves no record for support to find. Here, `issue()` writes to the caller’s `tx` and the email goes out after the commit.',
       'Answering “this account uses social login” on a password login. That is an oracle: you can enumerate, by timing the form, exactly which addresses have no password. Here the error is the same generic one and pays the same Argon2 cost — `verifyPassword(null, …)` verifies against a hash of something nobody knows before returning `false`.',
       'Counting seats before writing the user. Two concurrent requests both read “one left” and both create: counting locks nothing. Here `pg_advisory_xact_lock`, per company and per resource, sits inside the same transaction as the write.',
@@ -107,17 +104,12 @@ export const en: Messages = {
   },
 
   configurator: {
-    title: 'Build the command',
-    lead: 'Nothing is generated here. This page assembles a string — the generator lives in the CLI, versioned together with the template, and it decides what goes into your repository. No server, no build queue, no zip file to go stale in a cache.',
-
-    nameLegend: 'The project name',
     nameLabel: 'Name',
     namePlaceholder: 'Acme Corp',
     nameHelp: 'What you call the product. Everything else is derived from it.',
     slugLabel: 'Slug',
     slugHelp: 'Directory, npm package and identifiers. Lowercase, digits and hyphen.',
     slugDerived: 'derived from the name',
-    slugCustom: 'custom',
     slugReset: 'Back to derived',
     applySuggestion: 'Use',
 
@@ -135,24 +127,6 @@ export const en: Messages = {
       pascal: 'classes and types',
     },
 
-    presetLegend: 'Starting point',
-    presetNote:
-      'A preset is just a set of defaults. Everything below stays editable, and the command shows only what you changed.',
-    presetReset: 'Discard changes to this preset',
-
-    featuresLegend: 'What goes in',
-    featuresNote:
-      'The generator subtracts: the template is the real repository, which compiles and runs, and turning a feature off deletes its files. No `{{#if}}` in the code.',
-    groups: {
-      access: 'Access',
-      tenancy: 'Companies',
-      ops: 'Operations',
-      extras: 'Extras',
-    },
-
-    driversLegend: 'Adapters',
-    driversNote:
-      'Switching provider means switching an environment variable — the domain depends on the port, not on the vendor. These choices land in the generated `.env`.',
     driverLabels: {
       db: 'Database',
       storage: 'Storage',
@@ -160,22 +134,6 @@ export const en: Messages = {
       cache: 'Cache',
       queue: 'Queue',
       captcha: 'Captcha',
-    },
-
-    oauthLegend: 'Social login providers',
-    oauthNote:
-      'The API and the web app must list the same names, or the extra button 404s. The generator writes both sides.',
-
-    localesLegend: 'Project languages',
-    localesNote: 'The languages of the product you are about to generate. Unrelated to this page.',
-    defaultLocaleLabel: 'Default language',
-
-    optionsLegend: 'At generation time',
-    optionLabels: {
-      git: 'Run `git init` and the first commit',
-      install: 'Run `pnpm install` at the end',
-      docker: 'Emit `docker-compose.yml` with the services in use',
-      force: 'Overwrite the target directory if it already exists',
     },
 
     issuesTitle: 'Incoherent combination',
@@ -189,7 +147,7 @@ export const en: Messages = {
     copied: 'Command copied',
     copyFailed: 'Could not copy — select the text and copy it',
     flagsTitle: 'The flags',
-    flagsNote: 'Only what differs from the preset. Remove one to go back to its default.',
+    flagsNote: 'Only what differs from the starting point.',
     removeFlag: 'Remove',
     shareTitle: 'Link to this configuration',
     shareNote:
@@ -260,14 +218,14 @@ export const en: Messages = {
     presets: {
       minimal: {
         label: 'Minimal',
-        summary: 'Password auth, multi-tenancy with RLS, and the test suite. Nothing else.',
+        summary: 'Password auth, isolation in the database, and the test suite. Nothing else.',
         audience:
           'For someone building the whole product and who only wants the access layer already proven.',
       },
       saas: {
         label: 'SaaS',
         summary:
-          'Genuinely multi-company: invitations, plans with seat limits, 2FA, social login and a durable queue.',
+          'Genuinely multi-company: invitations, plans with seat limits, 2FA and a durable queue.',
         audience:
           'For a subscription product with more than one customer company in the same database.',
       },
@@ -285,13 +243,174 @@ export const en: Messages = {
     },
   },
 
+  wizard: {
+    open: 'Build',
+    openHero: 'Build my system',
+    close: 'Close',
+    next: 'Continue',
+    back: 'Back',
+    finish: 'See the command',
+    recommended: 'Use the recommended',
+    progress: 'Step {n} of {total}',
+    yes: 'Yes',
+    no: 'No',
+    edit: 'Edit',
+    steps: {
+      name: {
+        eyebrow: 'Name',
+        question: 'What will your system be called?',
+        help: 'It can be the product’s name or the company’s. Everything else comes from it: the folder, the package, the database, even the user Postgres creates. The derived forms appear below as you type.',
+      },
+      preset: {
+        eyebrow: 'Starting point',
+        question: 'Which of these looks most like what you are about to build?',
+        help: 'This only answers the next questions for you. Nothing gets locked: if an answer does not fit, change it on its own step or in the review at the end.',
+      },
+      tenancy: {
+        eyebrow: 'Companies',
+        question:
+          'Will your system serve several different companies, each one seeing only its own data?',
+        help: 'It is the difference between a product you sell to many customers and a system that runs for a single company.',
+        choices: {
+          yes: {
+            label: 'Yes, several companies',
+            help: 'Each company is kept apart inside the database by Postgres itself, not by a filter someone can forget to write. Comes with an admin panel and a company switcher.',
+          },
+          no: {
+            label: 'No, one company only',
+            help: 'The system starts with one fixed company and the switching screens stay out. The separation is still in the database — it just does not show on screen, because there is nothing to switch.',
+          },
+        },
+      },
+      entry: {
+        eyebrow: 'Getting in',
+        question: 'How will people get into the system?',
+        help: 'Who may create an account is the decision that changes your product the most — and the one that goes wrong most often when it is left for later.',
+        choices: {
+          open: {
+            label: 'Anyone can sign up',
+            help: 'There is an open signup form, and whoever signs up creates their own company. It is what a product sold over the internet needs.',
+          },
+          invite: {
+            label: 'Only by invitation',
+            help: 'An administrator invites by email and the invitee picks their own password. Nobody ever learns someone else’s password, and clicking the link is what proves that address exists.',
+          },
+          seed: {
+            label: 'Only the accounts I create',
+            help: 'No signup and no invitations: the only account is the one the system creates on install. Good for internal use — and it means you create the other people by hand.',
+          },
+        },
+      },
+      social: {
+        eyebrow: 'Social login',
+        question: 'Do you want the sign-in-with-Google, Apple or GitHub button?',
+        help: 'It removes a step for the user, and removes forgotten passwords too. In exchange, each provider needs a key you create on their site.',
+        choices: {
+          yes: {
+            label: 'Yes',
+            help: 'The account is recognised by the identifier the provider gives, never by the email: work addresses get recycled, and matching by email is how someone inherits the account of a person who left.',
+          },
+          no: {
+            label: 'No',
+            help: 'Email and password only, and the providers’ code leaves the project — less to maintain. To get it back, generate again with social login on.',
+          },
+        },
+      },
+      twoFactor: {
+        eyebrow: 'Second factor',
+        question: 'Should people be able to require a code from their phone to sign in?',
+        help: 'It is the six-digit code from an app like Google Authenticator. Whoever turns it on protects the account even if the password leaks.',
+        choices: {
+          yes: {
+            label: 'Yes',
+            help: 'Each person turns it on for their own account, with backup codes in case the phone is lost. Social login respects it: with the second factor on, signing in with Google does not skip the step.',
+          },
+          no: {
+            label: 'No',
+            help: 'Signing in is password only. The code, the setup screen and the backup codes all go.',
+          },
+        },
+      },
+      languages: {
+        eyebrow: 'Languages',
+        question: 'Will the system speak more than one language?',
+        help: 'This is about the product you are generating, not about this page.',
+        choices: {
+          one: {
+            label: 'One language',
+            help: 'Screens and emails come out in a single language. The translation plumbing stays in the code, so adding a second one later is not rebuilding the screens.',
+          },
+          many: {
+            label: 'More than one',
+            help: 'You pick which. A test makes sure no language ends up missing a sentence — which is how a screen shows up in English in the middle of Portuguese.',
+          },
+        },
+      },
+      plans: {
+        eyebrow: 'Plans',
+        question: 'Will you sell plans with limits, the “up to 10 users” kind?',
+        help: 'It is what separates a basic plan from an advanced one inside the system itself.',
+        choices: {
+          yes: {
+            label: 'Yes',
+            help: 'Each company gets a people limit and counters per resource. The limit is checked at write time, with a lock in the database: two invitations accepted in the same second cannot go over the cap.',
+          },
+          no: {
+            label: 'No',
+            help: 'No limits and no counters. Nobody is stopped for being too big.',
+          },
+        },
+      },
+      files: {
+        eyebrow: 'Files',
+        question: 'Will people upload files — profile pictures, attachments, documents?',
+        help: 'It changes where the files live and how they reach the browser.',
+        choices: {
+          yes: {
+            label: 'Yes',
+            help: 'The upload goes straight to storage, through a signed link. Works with Amazon S3, MinIO, Cloudflare R2 or the machine’s disk, and switching between them is one line of configuration.',
+          },
+          no: {
+            label: 'No',
+            help: 'No uploads and no profile picture. Less code, and no bucket to configure.',
+          },
+        },
+      },
+      captcha: {
+        eyebrow: 'Bots',
+        question: 'Do the public screens need protection against bots?',
+        help: 'It applies to signup, login and password recovery — the screens a bot tries in bulk.',
+        choices: {
+          yes: {
+            label: 'Yes',
+            help: 'Comes with Cloudflare Turnstile, and Google reCAPTCHA as an alternative. If the provider goes down, the system refuses instead of letting everyone through — the opposite is how a form stays open without anyone noticing.',
+          },
+          no: {
+            label: 'No',
+            help: 'No puzzle on screen. The attempt limit per network address still applies, so it is not “no protection”: it is without that layer.',
+          },
+        },
+      },
+      review: {
+        eyebrow: 'Review',
+        question: 'Check it before you run it.',
+        help: 'Every line goes back to the question that produced it. The command is exactly what the generator will receive.',
+      },
+      done: {
+        eyebrow: 'Done',
+        question: 'Copy it and run it.',
+        help: 'Paste it in the terminal, in the folder where you want the project. Two minutes later you are looking at its login screen.',
+      },
+    },
+  },
+
   how: {
     title: 'How it works',
     lead: 'Four steps, and only the third one takes any time.',
     steps: [
       {
-        title: 'Pick the parts',
-        body: 'A preset as a starting point and toggles on top. The URL keeps the choice, so you can send the link to whoever decides with you before running anything.',
+        title: 'Answer the wizard',
+        body: 'Twelve questions in plain language, and the starting point already answers most of them. The URL keeps the choice, so you can send the link to whoever decides with you before running anything.',
       },
       {
         title: 'Copy the command',
@@ -320,6 +439,7 @@ export const en: Messages = {
     title: "What's inside",
     lead: 'The template is the real DontPanic repository, at the tag the generator declares. It is not a demo build: it is the code that runs its own CI.',
     stackTitle: 'The stack',
+    stackHead: { tech: 'Technology', solves: 'What it solves' },
     stackRoles: [
       'API, with Fastify underneath',
       'Web, with the BFF that talks to the API instead of the browser',
@@ -330,11 +450,36 @@ export const en: Messages = {
       'Tests: unit, component and e2e',
       'Monorepo, with build caching',
     ],
-    portsTitle: 'Ports & Adapters',
-    portsLead:
-      'Five resources where switching provider means switching an environment variable. The domain depends on the interface; the vendor is a pluggable detail.',
-    portsHead: { resource: 'Resource', adapters: 'Adapters', env: 'Variable' },
-    portsResources: ['Files', 'Email', 'Cache', 'Jobs', 'Captcha'],
+    factoryTitle: 'Out of the box',
+    factory: [
+      {
+        label: 'Access and session',
+        text: 'Argon2 passwords, session in an httpOnly cookie, rotating refresh with reuse detection — a stolen token takes down the whole family. Changing the password ends the other sessions.',
+      },
+      {
+        label: 'Isolation in the database',
+        text: 'Row Level Security in Postgres, with the scope declared per request. A new table with `tenantId` protects itself: `SELECT app.apply_tenant_rls();` at the end of the migration.',
+      },
+      {
+        label: 'Invitations and onboarding',
+        text: 'Token stored only as a hash, at most one pending invitation per email (partial unique index), and the email going out after the commit — never inside the transaction.',
+      },
+      {
+        label: 'Five swaps by variable',
+        text: 'Storage, email, cache, queue and captcha behind interfaces: `STORAGE_DRIVER`, `MAIL_DRIVER`, `CACHE_DRIVER`, `QUEUE_DRIVER`, `CAPTCHA_DRIVER`.',
+      },
+      {
+        label: 'Background work',
+        text: 'BullMQ on Redis, with the worker in a separate process and the tenant travelling along with the job. Without it, the job would see an empty database and report success.',
+      },
+      {
+        label: 'Tests that prove it',
+        text: 'Unit tests with the database mocked, e2e against a real Postgres under the restricted role, and the web UI kit in Vitest.',
+      },
+    ],
+    decisionsTitle: 'The part nobody writes',
+    decisionsText:
+      'Every security decision has a file in `docs/decisions/` and a section in `CLAUDE.md`, with the reasoning and what happens if someone undoes it. It is what an agent reads before writing — and what you read six months later, when you cannot remember why it is like that.',
     numbersTitle: 'The numbers',
     numbers: [
       { value: '78,533', label: 'lines of TypeScript' },
@@ -350,7 +495,7 @@ export const en: Messages = {
     items: [
       {
         q: 'What exactly is tested?',
-        a: 'The preset matrix, in full: CI generates a project from each preset, demands zero occurrences of the old name, and runs install, typecheck, unit and e2e. Plus all-on, all-off, and each feature turned off individually on top of the SaaS preset. Thirteen boolean features are 8,192 combinations, and CI does not test 8,192 projects: combinations outside that matrix are allowed and untested — and the CLI says so, in one line, without drama. A boilerplate that promises guarantees it does not verify is worse than one that states the limit.',
+        a: 'The preset matrix, in full: CI generates a project from each preset, demands zero occurrences of the old name, and runs install, typecheck, unit and e2e. Plus all-on, all-off, and each feature turned off individually on top of the SaaS preset. Fourteen boolean features are 16,384 combinations, and CI does not test 16,384 projects: combinations outside that matrix are allowed and untested — and the CLI says so, in one line, without drama. A boilerplate that promises guarantees it does not verify is worse than one that states the limit.',
       },
       {
         q: 'What if I do not want multi-tenancy?',
@@ -377,11 +522,14 @@ export const en: Messages = {
 
   footer: {
     tagline: 'A SaaS boilerplate that already made the boring decisions.',
-    repo: 'Source on GitHub',
-    license: 'MIT',
+    brandNote:
+      'A project generator built on the DontPanic boilerplate. You pick the parts; the command generates the repository.',
     sourceNote:
       'The numbers on this page come from `wc -l` and `grep` on the repository. Check them.',
-    marvin:
-      'Here I am, brain the size of a planet, assembling a command line. They call this job satisfaction.',
+    license: 'MIT',
+    productTitle: 'Product',
+    docsTitle: 'Documentation',
+    contactTitle: 'Contact',
+    joke: 'This footer was assembled by an intelligence the size of a planet. It contains four lists of links. Don’t panic: the rest of the code is more interesting.',
   },
 };

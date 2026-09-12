@@ -194,13 +194,17 @@ export const twoFactorManifest: FeatureManifest = {
       pattern: 'skip-two-factor-gate\\.decorator',
       reason: 'auth.controller.ts:12 — decorator apagado por deletePaths.',
     },
-    {
-      file: 'apps/api/src/modules/auth/auth.controller.ts',
-      kind: 'dropImportSpecifier',
-      pattern: 'AuthUserResponse',
-      reason:
-        "Especificador do `import type { … } from '@dontpanic/shared'` (auth.controller.ts:6) usado APENAS pelo handler verifyTwoFactor; com noUnusedLocals do tsconfig estrito um import órfão falha o build. `LoginResponse` FICA — em packages/shared ele passa a ser alias de authUserResponseSchema (ver costura de shared/auth.ts), o que preserva a assinatura de login() sem tocá-la.",
-    },
+    // COSTURA REMOVIDA: `AuthUserResponse` NÃO pode sair do import de `auth.controller.ts`.
+    //
+    // A premissa era "usado APENAS pelo handler verifyTwoFactor", e ela é falsa contra o
+    // template: `refresh()` declara `Promise<AuthUserResponse>` e `let user:
+    // AuthUserResponse['user']` — e refresh é núcleo, não 2FA. Dropar o especificador dava
+    // `TS2304: Cannot find name 'AuthUserResponse'` em duas linhas do controller de auth.
+    //
+    // O mapa registra em F3(b) uma contradição exatamente aqui (dizer que o especificador
+    // sai E que `login()` passa a devolver `AuthUserResponse`); a resolução correta é a
+    // outra metade, já implementada: em `packages/shared` o `LoginResponse` vira ALIAS de
+    // `AuthUserResponse`, então nenhuma assinatura do controller precisa ser tocada.
     {
       file: 'apps/api/src/modules/auth/auth.controller.ts',
       kind: 'dropImportSpecifier',
@@ -382,7 +386,81 @@ export const twoFactorManifest: FeatureManifest = {
       reason: '7 asserções sobre o campo (map F3(b)); todas falham depois do mapper podado.',
     },
 
-    // ─── users module ────────────────────────────────────────────────────────────
+    {
+      file: 'apps/web/src/app/(auth)/login/login.test.tsx',
+      kind: 'dropBlock',
+      block: {
+        start: "it\\('shows an inline error when the 2FA code is rejected",
+        end: '\\}\\);',
+      },
+      reason:
+        'Teste do erro 401 no passo do código (login.test.tsx:215-235). O passo do código sai com a feature, então não há formulário onde digitar.',
+    },
+    {
+      file: 'apps/web/src/app/(auth)/login/login.test.tsx',
+      kind: 'dropBlock',
+      block: {
+        start: "it\\('toasts a generic error when 2FA verify fails unexpectedly",
+        end: '\\}\\);',
+      },
+      reason:
+        'Teste do 500 no `POST /auth/2fa/verify` (login.test.tsx:236-258) — rota que a API deixa de servir.',
+    },
+
+    // ─── specs que SOBREVIVEM e mencionam 2FA de passagem ────────────────────────
+    //
+    // Estes não saem com a feature: cobrem login limpo, o mapper e o serviço de usuários,
+    // que continuam existindo. O que sai é a MENÇÃO. Descobertos rodando `pnpm test` no
+    // projeto gerado: o `pnpm typecheck` do boilerplate não cobre `*.spec.ts`, então esta
+    // classe de erro só aparece no jest, via ts-jest.
+    {
+      file: 'apps/api/src/modules/auth/services/auth.service.spec.ts',
+      kind: 'replace',
+      pattern: ',?\\s*twoFactorEnabled: (?:true|false)',
+      replacement: '',
+      reason:
+        'A propriedade em `makeUser({ … })` dentro de testes que SOBREVIVEM (o de sucesso limpo do login, por exemplo). Removida como propriedade, não como linha: ela divide a linha com `id` e `failedLoginAttempts`.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/user.mapper.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: 'twoFactorSecret',
+      reason:
+        'A fixture e a asserção de `twoFactorSecret` no teste "NEVER leaks the password hash or the 2FA secret" — o teste FICA (a metade do `passwordHash` é core), só as linhas do segredo de TOTP saem.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/user.mapper.spec.ts',
+      kind: 'replace',
+      pattern: 'NEVER leaks the password hash or the 2FA secret',
+      replacement: 'NEVER leaks the password hash',
+      reason:
+        'O título do teste passa a prometer o que ele ainda verifica. Título que cita um campo inexistente é o que faz alguém procurar a cobertura que não existe.',
+    },
+    {
+      file: 'apps/api/src/modules/users/services/users.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        'new UsersService\\(prisma, twoFactor, tokenService, config, cache, queue\\)',
+      replacement: 'new UsersService(prisma, tokenService, cache, queue)',
+      reason:
+        'O spec instancia o service à mão e POSICIONALMENTE. Com `TwoFactorService` e o `ConfigService` fora do construtor (o único env que ele lia era `TWO_FACTOR_REQUIRED`), passar seis argumentos dá `TS2554`. Ajustar a ordem sem ajustar a contagem seria pior: compilaria com `cache` no lugar de `tokenService`.',
+    },
+    {
+      file: 'apps/api/src/modules/users/services/users.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*let (twoFactor|config): any;|^\\s*config = \\{ get: jest\\.fn',
+      reason:
+        'As declarações dos dois doubles que saíram do construtor. Sem removê-las, `noUnusedLocals` do tsconfig de teste derruba a suíte.',
+    },
+    {
+      file: 'apps/api/src/modules/users/services/users.service.spec.ts',
+      kind: 'dropBalancedBlock',
+      pattern: '^\\s*twoFactor = \\{',
+      reason:
+        'O corpo do double de 2FA na fixture. `dropBalancedBlock` porque o objeto tem chaves aninhadas nos `jest.fn()`.',
+    },
+
+    // ─── users module ────────────────────────────────────────────────────────────    // ─── users module ────────────────────────────────────────────────────────────
     {
       file: 'apps/api/src/modules/users/users.controller.ts',
       kind: 'dropImportSpecifier',
@@ -524,10 +602,34 @@ export const twoFactorManifest: FeatureManifest = {
     },
     {
       file: 'apps/api/src/modules/users/services/users.service.spec.ts',
-      kind: 'dropLinesMatching',
-      pattern: 'twoFactor(Enabled|Secret|BackupCode)',
+      // A âncora ampla `twoFactor(Enabled|Secret|BackupCode)` removia LINHAS, e uma delas
+      // era `prisma.user.findUnique.mockResolvedValue(makeUser({ id: 'u1', passwordHash:
+      // 'SECRET-HASH', twoFactorSecret: 'TOTP-SECRET' }))` — o mock do usuário do teste de
+      // export de LGPD. Sem ele o service não achava usuário e o teste falhava com
+      // `NotFoundException`, a quilômetros da causa. Propriedade sai como PROPRIEDADE.
+      kind: 'replace',
+      pattern: ',?\\s*twoFactor(?:Enabled|Secret|RemindAt): [^,}\\n]+',
+      replacement: '',
       reason:
-        'Asserções 2FA dentro do teste de anonimização (users.service.spec.ts:540-561). O TESTE FICA — ele prova a erasure LGPD, que é core; só as asserções sobre campos que já não existem saem.',
+        'As propriedades 2FA nas fixtures de testes que SOBREVIVEM (export de LGPD e anonimização). Removidas como propriedade e não como linha: elas dividem a linha com `id` e `passwordHash`, que o teste precisa.',
+    },
+    {
+      file: 'apps/api/src/modules/users/services/users.service.spec.ts',
+      kind: 'dropLinesMatching',
+      // Só linhas que são STATEMENT COMPLETO: o delegate do Prisma na fixture e as
+      // asserções sobre campos que já não existem.
+      pattern:
+        "^\\s*twoFactorBackupCode:|^\\s*expect\\((?:out\\.profile|updateCall\\.data)[^)]*twoFactor|^\\s*expect\\(cache\\.del\\)\\.toHaveBeenCalledWith\\('2fa:pending",
+      reason:
+        'O delegate `twoFactorBackupCode` do mock de Prisma, as duas asserções sobre `updateCall.data.twoFactor*` na anonimização, a asserção de que o export não vaza `twoFactorSecret`, e a de que a erasure limpa a chave de cache `2fa:pending:<id>`. Os TESTES ficam — provam a erasure LGPD e o export, que são core.',
+    },
+    {
+      file: 'apps/api/src/modules/users/services/users.service.spec.ts',
+      kind: 'replace',
+      pattern: 'anonymizes the row, wipes 2FA, revokes sessions and clears the pending cache',
+      replacement: 'anonymizes the row and revokes sessions',
+      reason:
+        'O título passa a prometer só o que o teste ainda verifica. Um título que cita "wipes 2FA" num projeto sem 2FA manda o próximo dev procurar cobertura inexistente.',
     },
     {
       file: 'apps/api/src/modules/users/users.module.ts',
@@ -1499,6 +1601,24 @@ export const filesManifest: FeatureManifest = {
       block: { start: "describe\\('apiUpload\\(\\)'", end: '\\}\\);' },
       reason:
         'Os dois testes de apiUpload (lib/api.test.ts:290-320). Saem com a função; deixá-los derruba a suíte do web imediatamente.',
+    },
+    // O `describe` não é tudo: o arquivo IMPORTA o tipo, declara `let apiUpload` e o
+    // atribui no `beforeEach`. Sem estas três, o web falha com `TS2305` + `TS2339` num
+    // arquivo cujo resto testa `api()`, que sobrevive.
+    {
+      file: 'apps/web/src/lib/api.test.ts',
+      kind: 'dropImportSpecifier',
+      pattern: '^apiUpload$',
+      target: '^\\./api$',
+      reason:
+        'O `import type { apiUpload as apiUploadType }` (api.test.ts:4). O alias é o que o `let` abaixo tipa; sem remover os três em conjunto o arquivo não compila.',
+    },
+    {
+      file: 'apps/web/src/lib/api.test.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*let apiUpload:|^\\s*apiUpload = mod\\.apiUpload;',
+      reason:
+        'A declaração e a atribuição dinâmica de `apiUpload` (api.test.ts:38,51). O módulo é recarregado por `await import()` em cada teste, e a atribuição referencia um export que já não existe.',
     },
     // apps/web/src/proxy.ts: NENHUMA costura — não há branch de arquivo/upload, e o
     // matcher já exclui /api.

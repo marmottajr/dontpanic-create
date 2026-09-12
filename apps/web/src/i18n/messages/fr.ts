@@ -10,7 +10,6 @@ export const fr: Messages = {
   nav: {
     skipToContent: 'Aller au contenu',
     proof: 'La preuve',
-    configure: 'Composer la commande',
     how: 'Comment ça marche',
     inside: 'Ce qu’il y a dedans',
     faq: 'Questions',
@@ -27,10 +26,10 @@ export const fr: Messages = {
     title:
       'Les décisions de sécurité qu’une IA rate en silence sont déjà prises, documentées et testées.',
     lead: 'DontPanic est un boilerplate SaaS full-stack — NestJS, Next.js, Prisma, Postgres avec un vrai Row Level Security. Chaque choix de sécurité est déjà fait, expliqué dans le `CLAUDE.md` que votre agent lit avant la première ligne, et couvert par un test qui échoue dès que quelqu’un le défait. Effet de bord : le contexte part dans votre produit au lieu de redécouvrir comment on fait la rotation des refresh tokens.',
+    nameCta: 'Commencer',
     commandLabel: 'Commande du preset par défaut',
     commandNote:
-      'Nécessite Node 24 et pnpm. Pour choisir les parties, composez votre commande plus bas.',
-    ctaConfigure: 'Composer ma commande',
+      'Nécessite Node 24 et pnpm. Pour choisir les parties, répondez à l’assistant — douze questions.',
     ctaProof: 'Voir les erreurs évitées',
     facts: [
       {
@@ -42,90 +41,79 @@ export const fr: Messages = {
         label:
           'ressources interchangeables par variable d’environnement, sans toucher à la logique',
       },
-      {
-        value: '2 min',
-        label: 'du npx à `pnpm dev`, base migrée et admin créé par le seed',
-      },
+      { value: '2 min', label: 'du npx à `pnpm dev`, base migrée et admin créé par le seed' },
     ],
   },
 
   proof: {
+    eyebrow: 'Des erreurs qui passent la revue',
     title: 'La preuve',
-    lead: 'Rien ici n’est hypothétique. Ce sont des erreurs qui produisent du code qui compile, passe les tests et passe la revue — et qui ressort des mois plus tard, chez un utilisateur qui n’est pas vous. Chacune est déjà tranchée dans le boilerplate, avec la raison écrite à côté de la décision.',
+    lead: 'Rien ici n’est hypothétique. Ce sont des erreurs qui produisent du code qui compile, passe les tests et passe la revue — et qui ressort des mois plus tard, chez un utilisateur qui n’est pas vous. Chacune est déjà tranchée dans le boilerplate, avec la raison à côté de la décision et le test nommé en dessous.',
     labels: {
-      surface: 'Où ça vit',
-      code: 'Le code qui passe la revue',
-      whyItPasses: 'Pourquoi personne ne le voit',
       whatHappens: 'Ce qui arrive',
       ours: 'Dans DontPanic',
+      seal: 'couvert par des tests',
+      cases: 'cas',
     },
     items: [
       {
         id: 'oauth-identity',
-        title: 'Rapprocher l’identité sociale par l’adresse e-mail',
-        whyItPasses:
-          'Ça compile, et ça fonctionne à chaque connexion sur votre environnement de développement. Le test — qui n’a qu’un utilisateur — passe. La revue approuve, parce que c’est ainsi que font la plupart des tutoriels OAuth.',
+        eyebrow: 'Connexion sociale',
+        title: 'L’identité sociale rapprochée par l’adresse e-mail',
         whatHappens:
-          'Les adresses professionnelles sont recyclées. Ana quitte l’entreprise, les RH donnent `ana@societe.com` au suivant, il se connecte avec Google et **hérite du compte d’Ana** : historique, permissions, tout. Personne n’a rien forcé — le système a fait exactement ce qui était écrit.',
+          'Les adresses professionnelles sont recyclées. Ana quitte l’entreprise, les RH donnent `ana@societe.com` au suivant, il se connecte avec Google et **hérite du compte d’Ana** : historique, permissions, tout. Personne n’a rien forcé — le système a fait exactement ce qui était écrit, et le test, qui n’avait qu’un utilisateur, est passé.',
         ours: 'La clé d’identité est le `providerAccountId` immuable — `sub` chez Google et Apple, l’id numérique chez GitHub — avec `@@unique([provider, providerAccountId])`. La colonne `email` de `oauth_accounts` sert à l’affichage et peut être périmée. Et une adresse que le fournisseur n’a pas marquée comme vérifiée ne rattache rien : le callback renvoie `unverified_email`.',
       },
       {
         id: 'oauth-2fa',
-        title: 'Émettre une session dans le callback OAuth sans vérifier le second facteur',
-        whyItPasses:
-          'Le `TwoFactorGateGuard` existe et est enregistré. Il vérifie que la 2FA est *activée* — jamais que *cette* session est passée par elle. Le test de 2FA couvre le flux mot de passe, et le flux mot de passe est correct.',
+        eyebrow: 'Second facteur',
+        title: 'La session émise dans le callback OAuth sans vérifier le second facteur',
         whatHappens:
-          'Celui qui a activé TOTP volontairement découvre que « se connecter avec Google » ne demande jamais le code. La connexion sociale devient **strictement plus faible** que la saisie du mot de passe, et le second facteur devient optionnel pour qui sait sur quel bouton cliquer.',
+          'Celui qui a activé le code à six chiffres volontairement découvre que « se connecter avec Google » ne le demande jamais. La connexion sociale devient **strictement plus faible** que la saisie du mot de passe, et le second facteur devient optionnel pour qui sait sur quel bouton cliquer. Le `TwoFactorGateGuard` ne l’attrape pas : il vérifie que la 2FA est *activée*, jamais que *cette* session est passée par elle.',
         ours: 'Si `twoFactorEnabled`, le callback n’émet pas de session : il crée le même ticket que `POST /auth/login` créerait, le livre dans un cookie de cinq minutes à usage unique, et redirige vers `/login?twofactor=1`. Un cookie et pas une query string — la query string finit dans l’historique du navigateur, dans l’en-tête `Referer` et dans les logs de tous les proxys du trajet.',
       },
       {
-        id: 'trust-proxy',
-        title: 'Activer `trustProxy: true` pour régler un 429 injustifié',
-        whyItPasses:
-          'Ça règle le symptôme immédiatement : le rate limit distingue à nouveau les clients, le 429 disparaît, et le déploiement part avec le problème résolu. Aucun test ne l’attrape, parce qu’un test ne forge pas d’en-tête.',
+        id: 'rls-where',
+        eyebrow: 'Isolation',
+        title: 'L’isolation entre entreprises confiée au `where` de l’application',
         whatHappens:
-          "Faire confiance à tous les hops, c’est accepter n’importe quel `X-Forwarded-For` — et `X-Forwarded-For` n’est **pas** dans la liste des forbidden headers de fetch : le navigateur peut donc le définir. Un `fetch('/api/auth/login', { headers: { 'x-forwarded-for': ipAleatoire() } })` obtient un nouveau seau à chaque requête, et le rate limit du login cesse d’exister. Compter les hops depuis la gauche mène au même endroit : le load balancer fait un append, donc dans `X-Forwarded-For: <forgé>, <réel>` le premier élément est ce que l’attaquant a écrit.",
-        ours: '`CLIENT_IP_HEADER` et `CLIENT_IP_TRUSTED_HOPS`, comptés **depuis la droite**. Le BFF supprime tout en-tête de forwarding venant du navigateur et en réécrit un seul, assaini. La valeur par défaut est zéro hop : il n’envoie aucune IP et traite tout le monde derrière le proxy comme un seul client — trop restrictif, et non contournable.',
+          'La garantie est devenue une discipline humaine, répétée à chaque requête, par tous ceux qui rejoindront l’équipe après vous. Le premier `findUnique({ where: { id } })` par clé primaire — écrit dans l’urgence, ou par un agent qui ne connaissait pas la règle — renvoie la ligne d’une autre entreprise. Et il n’échoue pas : **il renvoie des données, avec un statut 200**.',
+        ours: 'L’isolation appartient à Postgres, pas à l’application : Row Level Security, avec le scope déclaré par `SET LOCAL` dans la transaction de la requête. Sans aucun scope, `current_setting(…, true)` renvoie NULL et la policy ne correspond jamais — oublier le scope donne un résultat **vide**, jamais la ligne de la mauvaise entreprise. Le filtre applicatif reste là, par commodité ; la garantie est celle du dessous.',
       },
       {
-        id: 'guard-scope',
-        title: 'Lire la base dans un guard, avant que le scope de tenant existe',
-        whyItPasses:
-          'Nest exécute les guards **avant** les interceptors. Quand le guard tourne, l’interceptor qui ouvre la transaction avec `SET LOCAL` n’a pas encore tourné : `prisma.db` retombe sur le client de base, sans scope, et la policy RLS renvoie zéro ligne. Aucune exception. Couverture verte, 200 OK, rien dans les logs.',
+        id: 'password-reset',
+        eyebrow: 'Sessions',
+        title: 'La réinitialisation de mot de passe qui ne coupe pas les sessions ouvertes',
         whatHappens:
-          'Le guard conclut « cet utilisateur n’a pas la 2FA » et **laisse passer**. C’est exactement comme ça que le `TwoFactorGateGuard` de DontPanic est devenu un no-op silencieux — le bug est dans l’historique du dépôt, et la leçon a été écrite à côté.',
-        ours: 'Un guard qui lit la base ouvre son propre scope, avec `this.prisma.forTenant(tenantId, …)` ou `asPlatform`, et **échoue fermé** quand la lecture revient vide. La règle, avec l’histoire du bug à côté, est dans la section multi-tenancy du `CLAUDE.md` — le fichier que votre agent lit avant d’écrire le guard suivant.',
+          'La personne change son mot de passe précisément parce qu’elle soupçonne une intrusion. Le nouveau hash n’invalide rien : le refresh token de l’intrus **continue de se renouveler tout seul**, et il reste dans le compte longtemps après le changement — indéfiniment, tant qu’il continue d’utiliser le système.',
+        ours: '`resetPassword` écrit le nouveau mot de passe et consomme le jeton dans la même transaction puis, après le commit, appelle `revokeAllForUser` — toute session existante meurt, enregistrée dans l’audit comme une déconnexion volontaire. Le refresh rotatif fait le reste : un ancien jeton représenté révoque toute la famille.',
       },
       {
         id: 'db-owner',
-        title: 'Pointer `DATABASE_URL` vers le propriétaire de la base',
-        whyItPasses:
-          'C’est ce que dit le tutoriel, et c’est l’utilisateur que crée le `docker compose` de Postgres. Pire : vos tests d’isolation passent, parce qu’ils exercent le filtre applicatif — qui est bien là, et qui est juste.',
+        eyebrow: 'Base de données',
+        title: 'La `DATABASE_URL` pointée sur le propriétaire de la base',
         whatHappens:
-          'Un SUPERUSER — et tout rôle avec `BYPASSRLS` — ignore Row Level Security même avec `FORCE ROW LEVEL SECURITY`. **Toute policy devient décorative**, et l’isolation entre entreprises redevient dépendante du fait qu’aucune requête n’oublie jamais un `where`, pour toujours, dans tout le code à venir.',
-        ours: 'L’application se connecte avec un rôle restreint, créé `NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS` ; le propriétaire ne vit que dans `DATABASE_ADMIN_URL`, pour `migrate` et `seed`. L’API **refuse de démarrer** en production si elle détecte un superuser. Et la suite e2e tourne sous le rôle restreint — c’est ce qui fait que `tenant-isolation.e2e-spec.ts` prouve quelque chose au lieu de répéter l’intention du code.',
+          'Un SUPERUSER — et tout rôle avec `BYPASSRLS` — ignore Row Level Security même avec `FORCE ROW LEVEL SECURITY`. **Toute policy devient décorative**, et l’isolation redevient dépendante du fait qu’aucune requête n’oublie un `where`. Pire : vos tests d’isolation passent, parce qu’ils exercent le filtre applicatif, qui est bien là et qui est juste.',
+        ours: 'L’application se connecte avec un rôle restreint, créé `NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS` ; le propriétaire ne vit que dans `DATABASE_ADMIN_URL`, pour `migrate` et `seed`. L’API **refuse de démarrer** en production si elle détecte un superuser. Et la suite e2e tourne sous le rôle restreint — c’est ce qui fait que le test d’isolation prouve quelque chose au lieu de répéter l’intention du code.',
       },
     ],
-    moreTitle: 'Trois autres, même schéma',
+    moreTitle: 'Cinq autres, même schéma',
     more: [
-      'Envoyer l’e-mail d’invitation à l’intérieur de la transaction. Un rollback livre un lien valide pointant vers une entreprise qui n’existe pas, et ne laisse aucune trace que le support puisse retrouver. Ici, `issue()` écrit dans le `tx` de l’appelant et l’envoi a lieu après le commit.',
+      'Activer `trustProxy: true` pour faire disparaître un 429 injustifié. Faire confiance à tous les hops, c’est accepter n’importe quel `X-Forwarded-For` — et le navigateur **peut** le définir, puisqu’il n’est pas dans la liste des forbidden headers de fetch : un nouveau seau de rate limit à chaque requête. Ici l’IP est comptée depuis la droite, avec `CLIENT_IP_TRUSTED_HOPS`, et le BFF supprime tout en-tête de forwarding venant du navigateur.',
+      'Lire la base dans un guard, avant que le scope de tenant existe. Nest exécute les guards **avant** les interceptors, donc la policy RLS renvoie zéro ligne, le guard conclut « cet utilisateur n’a pas la 2FA » et laisse passer — sans erreur ni log. Ici, un guard qui lit la base ouvre son propre scope et échoue fermé.',
+      'Envoyer l’e-mail d’invitation à l’intérieur de la transaction. Un rollback livre un lien valide pointant vers une entreprise qui n’existe pas, et ne laisse aucune trace pour le support. Ici, `issue()` écrit dans le `tx` de l’appelant et l’envoi a lieu après le commit.',
       'Répondre « ce compte utilise la connexion sociale » sur un login par mot de passe. C’est un oracle : en chronométrant le formulaire, on énumère exactement les adresses sans mot de passe. Ici l’erreur est la même erreur générique et paie le même coût Argon2 — `verifyPassword(null, …)` vérifie contre le hash de quelque chose que personne ne connaît avant de renvoyer `false`.',
       'Compter les sièges avant d’écrire l’utilisateur. Deux requêtes simultanées lisent « il en reste un » et créent toutes les deux : compter ne verrouille rien. Ici, `pg_advisory_xact_lock`, par entreprise et par ressource, est dans la même transaction que l’écriture.',
     ],
   },
 
   configurator: {
-    title: 'Composez la commande',
-    lead: 'Rien n’est généré ici. Cette page assemble une chaîne — le générateur vit dans le CLI, versionné avec le template, et c’est lui qui décide de ce qui entre dans votre dépôt. Pas de serveur, pas de file de build, pas d’archive à périmer dans un cache.',
-
-    nameLegend: 'Le nom du projet',
     nameLabel: 'Nom',
     namePlaceholder: 'Acme Corp',
     nameHelp: 'Comme vous appelez le produit. Tout le reste en est dérivé.',
     slugLabel: 'Slug',
     slugHelp: 'Répertoire, paquet npm et identifiants. Minuscules, chiffres et tiret.',
     slugDerived: 'dérivé du nom',
-    slugCustom: 'personnalisé',
     slugReset: 'Revenir au dérivé',
     applySuggestion: 'Utiliser',
 
@@ -143,24 +131,6 @@ export const fr: Messages = {
       pascal: 'classes et types',
     },
 
-    presetLegend: 'Point de départ',
-    presetNote:
-      'Un preset n’est qu’un jeu de valeurs par défaut. Tout ce qui suit reste modifiable, et la commande n’affiche que ce que vous avez changé.',
-    presetReset: 'Abandonner les changements de ce preset',
-
-    featuresLegend: 'Ce qui entre',
-    featuresNote:
-      'Le générateur soustrait : le template est le vrai dépôt, qui compile et tourne, et désactiver une feature supprime ses fichiers. Pas de `{{#if}}` dans le code.',
-    groups: {
-      access: 'Accès',
-      tenancy: 'Entreprises',
-      ops: 'Exploitation',
-      extras: 'Extras',
-    },
-
-    driversLegend: 'Adapters',
-    driversNote:
-      'Changer de fournisseur, c’est changer une variable d’environnement — le domaine dépend du port, pas du prestataire. Ces choix atterrissent dans le `.env` du projet généré.',
     driverLabels: {
       db: 'Base de données',
       storage: 'Stockage',
@@ -168,23 +138,6 @@ export const fr: Messages = {
       cache: 'Cache',
       queue: 'File',
       captcha: 'Captcha',
-    },
-
-    oauthLegend: 'Fournisseurs de connexion sociale',
-    oauthNote:
-      'L’API et le web doivent lister les mêmes noms, sinon le bouton en trop renvoie un 404. Le générateur écrit les deux côtés.',
-
-    localesLegend: 'Langues du projet',
-    localesNote:
-      'Les langues du produit que vous allez générer. Sans rapport avec la langue de cette page.',
-    defaultLocaleLabel: 'Langue par défaut',
-
-    optionsLegend: 'À la génération',
-    optionLabels: {
-      git: 'Lancer `git init` et le premier commit',
-      install: 'Lancer `pnpm install` à la fin',
-      docker: 'Émettre `docker-compose.yml` avec les services utilisés',
-      force: 'Écraser le répertoire cible s’il existe déjà',
     },
 
     issuesTitle: 'Combinaison incohérente',
@@ -198,7 +151,7 @@ export const fr: Messages = {
     copied: 'Commande copiée',
     copyFailed: 'Copie impossible — sélectionnez le texte et copiez-le',
     flagsTitle: 'Les flags',
-    flagsNote: 'Seulement ce qui diffère du preset. Retirez-en un pour revenir à sa valeur.',
+    flagsNote: 'Seulement ce qui diffère du point de départ.',
     removeFlag: 'Retirer',
     shareTitle: 'Lien de cette configuration',
     shareNote:
@@ -269,14 +222,14 @@ export const fr: Messages = {
     presets: {
       minimal: {
         label: 'Minimal',
-        summary: 'Mot de passe, multi-tenancy avec RLS et la suite de tests. Rien d’autre.',
+        summary: 'Mot de passe, isolation dans la base et la suite de tests. Rien d’autre.',
         audience:
           'Pour qui va construire tout le produit et ne veut que la couche d’accès déjà prouvée.',
       },
       saas: {
         label: 'SaaS',
         summary:
-          'Vraiment multi-entreprise : invitations, plans avec limite de sièges, 2FA, connexion sociale et file durable.',
+          'Vraiment multi-entreprise : invitations, plans avec limite de sièges, 2FA et file durable.',
         audience:
           'Pour un produit vendu par abonnement, avec plusieurs entreprises clientes dans la même base.',
       },
@@ -295,13 +248,176 @@ export const fr: Messages = {
     },
   },
 
+  wizard: {
+    open: 'Composer',
+    openHero: 'Composer mon système',
+    close: 'Fermer',
+    next: 'Continuer',
+    back: 'Retour',
+    finish: 'Voir la commande',
+    recommended: 'Utiliser la recommandation',
+    progress: 'Étape {n} sur {total}',
+    yes: 'Oui',
+    no: 'Non',
+    edit: 'Modifier',
+    steps: {
+      name: {
+        eyebrow: 'Nom',
+        question: 'Comment votre système va-t-il s’appeler ?',
+        help: 'Ce peut être le nom du produit ou celui de l’entreprise. Tout le reste en découle : le dossier, le paquet, la base de données, et même l’utilisateur que Postgres crée. Les formes dérivées apparaissent ci-dessous pendant que vous tapez.',
+      },
+      preset: {
+        eyebrow: 'Point de départ',
+        question: 'Lequel ressemble le plus à ce que vous allez construire ?',
+        help: 'Ceci ne fait que répondre aux questions suivantes à votre place. Rien n’est verrouillé : si une réponse ne convient pas, changez-la à son étape ou dans la revue finale.',
+      },
+      tenancy: {
+        eyebrow: 'Entreprises',
+        question:
+          'Votre système va-t-il servir plusieurs entreprises différentes, chacune ne voyant que ses propres données ?',
+        help: 'C’est la différence entre un produit que vous vendez à de nombreux clients et un système qui tourne pour une seule entreprise.',
+        choices: {
+          yes: {
+            label: 'Oui, plusieurs entreprises',
+            help: 'Chaque entreprise est séparée dans la base par Postgres lui-même, et non par un filtre que quelqu’un peut oublier d’écrire. Livré avec un panneau d’administration et un sélecteur d’entreprise.',
+          },
+          no: {
+            label: 'Non, une seule entreprise',
+            help: 'Le système naît avec une entreprise fixe et les écrans de changement restent dehors. La séparation reste dans la base — elle n’apparaît simplement pas à l’écran, puisqu’il n’y a rien à changer.',
+          },
+        },
+      },
+      entry: {
+        eyebrow: 'Accès',
+        question: 'Comment les gens vont-ils entrer dans le système ?',
+        help: 'Qui peut créer un compte est la décision qui change le plus votre produit — et celle qui tourne le plus mal quand on la remet à plus tard.',
+        choices: {
+          open: {
+            label: 'N’importe qui peut s’inscrire',
+            help: 'Il y a un formulaire d’inscription ouvert, et celui qui s’inscrit crée sa propre entreprise. C’est ce dont un produit vendu sur internet a besoin.',
+          },
+          invite: {
+            label: 'Uniquement sur invitation',
+            help: 'Un administrateur invite par e-mail et l’invité choisit son propre mot de passe. Personne n’apprend le mot de passe d’un autre, et le clic sur le lien est ce qui prouve que l’adresse existe.',
+          },
+          seed: {
+            label: 'Seulement les comptes que je crée',
+            help: 'Ni inscription ni invitation : le seul compte est celui que le système crée à l’installation. Utile en interne — et cela veut dire que vous créez les autres personnes à la main.',
+          },
+        },
+      },
+      social: {
+        eyebrow: 'Connexion sociale',
+        question: 'Voulez-vous le bouton se connecter avec Google, Apple ou GitHub ?',
+        help: 'Cela enlève une étape à l’utilisateur, et enlève aussi le mot de passe oublié. En échange, chaque fournisseur demande une clé que vous créez chez lui.',
+        choices: {
+          yes: {
+            label: 'Oui',
+            help: 'Le compte est reconnu par l’identifiant que donne le fournisseur, jamais par l’e-mail : les adresses professionnelles sont recyclées, et rapprocher par e-mail, c’est ainsi que quelqu’un hérite du compte d’une personne partie.',
+          },
+          no: {
+            label: 'Non',
+            help: 'E-mail et mot de passe seulement, et le code des fournisseurs quitte le projet — moins à maintenir. Pour le récupérer, régénérez avec la connexion sociale activée.',
+          },
+        },
+      },
+      twoFactor: {
+        eyebrow: 'Second facteur',
+        question: 'Les gens doivent-ils pouvoir exiger un code du téléphone pour se connecter ?',
+        help: 'C’est le code à six chiffres d’une application comme Google Authenticator. Qui l’active protège son compte même si le mot de passe fuit.',
+        choices: {
+          yes: {
+            label: 'Oui',
+            help: 'Chacun l’active sur son propre compte, avec des codes de secours en cas de perte du téléphone. La connexion sociale le respecte : avec le second facteur activé, passer par Google ne saute pas l’étape.',
+          },
+          no: {
+            label: 'Non',
+            help: 'Se connecter, c’est le mot de passe seul. Le code, l’écran de configuration et les codes de secours disparaissent.',
+          },
+        },
+      },
+      languages: {
+        eyebrow: 'Langues',
+        question: 'Le système va-t-il parler plus d’une langue ?',
+        help: 'Il s’agit du produit que vous allez générer, pas de cette page.',
+        choices: {
+          one: {
+            label: 'Une langue',
+            help: 'Les écrans et les e-mails sortent dans une seule langue. La plomberie de traduction reste dans le code, donc en ajouter une seconde plus tard ne veut pas dire refaire les écrans.',
+          },
+          many: {
+            label: 'Plus d’une',
+            help: 'Vous choisissez lesquelles. Un test garantit qu’aucune langue ne se retrouve avec une phrase manquante — c’est comme ça qu’un écran apparaît en anglais au milieu du français.',
+          },
+        },
+      },
+      plans: {
+        eyebrow: 'Formules',
+        question:
+          'Allez-vous vendre des formules avec limite, du genre « jusqu’à 10 utilisateurs » ?',
+        help: 'C’est ce qui sépare une formule de base d’une formule avancée à l’intérieur du système.',
+        choices: {
+          yes: {
+            label: 'Oui',
+            help: 'Chaque entreprise reçoit une limite de personnes et des compteurs par ressource. La limite est vérifiée au moment d’écrire, avec un verrou dans la base : deux invitations acceptées dans la même seconde ne dépassent pas le plafond.',
+          },
+          no: {
+            label: 'Non',
+            help: 'Aucune limite et aucun compteur. Personne n’est bloqué pour cause de taille.',
+          },
+        },
+      },
+      files: {
+        eyebrow: 'Fichiers',
+        question:
+          'Les gens vont-ils envoyer des fichiers — photo de profil, pièces jointes, documents ?',
+        help: 'Cela change où les fichiers sont stockés et comment ils arrivent au navigateur.',
+        choices: {
+          yes: {
+            label: 'Oui',
+            help: 'L’envoi va directement au stockage, par un lien signé. Fonctionne avec Amazon S3, MinIO, Cloudflare R2 ou le disque de la machine, et passer de l’un à l’autre est une ligne de configuration.',
+          },
+          no: {
+            label: 'Non',
+            help: 'Pas d’envoi de fichier et pas de photo de profil. Moins de code, et aucun bucket à configurer.',
+          },
+        },
+      },
+      captcha: {
+        eyebrow: 'Robots',
+        question: 'Les écrans publics ont-ils besoin d’une protection contre les robots ?',
+        help: 'Cela vaut pour l’inscription, la connexion et la récupération de mot de passe — les écrans qu’un robot essaie en masse.',
+        choices: {
+          yes: {
+            label: 'Oui',
+            help: 'Livré avec Cloudflare Turnstile, et reCAPTCHA de Google en alternative. Si le fournisseur tombe, le système refuse au lieu de laisser tout passer — l’inverse, c’est ainsi qu’un formulaire reste ouvert sans que personne ne le remarque.',
+          },
+          no: {
+            label: 'Non',
+            help: 'Pas de casse-tête à l’écran. La limite de tentatives par adresse réseau reste active, donc ce n’est pas « sans protection » : c’est sans cette couche.',
+          },
+        },
+      },
+      review: {
+        eyebrow: 'Revue',
+        question: 'Vérifiez avant de lancer.',
+        help: 'Chaque ligne renvoie à la question qui l’a produite. La commande est exactement ce que le générateur va recevoir.',
+      },
+      done: {
+        eyebrow: 'Terminé',
+        question: 'Il ne reste qu’à copier et lancer.',
+        help: 'Collez-la dans le terminal, dans le dossier où vous voulez le projet. Deux minutes plus tard, vous regardez son écran de connexion.',
+      },
+    },
+  },
+
   how: {
     title: 'Comment ça marche',
     lead: 'Quatre étapes, et seule la troisième prend du temps.',
     steps: [
       {
-        title: 'Choisissez les parties',
-        body: 'Un preset comme point de départ et les toggles par-dessus. L’URL retient le choix : vous pouvez envoyer le lien à celui qui décide avec vous avant de rien lancer.',
+        title: 'Répondez à l’assistant',
+        body: 'Douze questions en langage courant, et le point de départ répond déjà à la plupart. L’URL retient le choix : vous pouvez envoyer le lien à celui qui décide avec vous avant de rien lancer.',
       },
       {
         title: 'Copiez la commande',
@@ -330,6 +446,7 @@ export const fr: Messages = {
     title: 'Ce qu’il y a dedans',
     lead: 'Le template est le vrai dépôt DontPanic, au tag que le générateur déclare. Ce n’est pas une version de démonstration : c’est le code qui fait tourner sa propre CI.',
     stackTitle: 'La stack',
+    stackHead: { tech: 'Technologie', solves: 'Ce qu’elle résout' },
     stackRoles: [
       'API, avec Fastify dessous',
       'Web, avec le BFF qui parle à l’API à la place du navigateur',
@@ -340,11 +457,36 @@ export const fr: Messages = {
       'Tests : unitaires, de composant et e2e',
       'Monorepo, avec cache de build',
     ],
-    portsTitle: 'Ports & Adapters',
-    portsLead:
-      'Cinq ressources où changer de fournisseur revient à changer une variable d’environnement. Le domaine dépend de l’interface ; le prestataire est un détail remplaçable.',
-    portsHead: { resource: 'Ressource', adapters: 'Adapters', env: 'Variable' },
-    portsResources: ['Fichiers', 'E-mail', 'Cache', 'Jobs', 'Captcha'],
+    factoryTitle: 'D’origine',
+    factory: [
+      {
+        label: 'Accès et session',
+        text: 'Mot de passe avec Argon2, session en cookie httpOnly, refresh rotatif avec détection de réutilisation — un jeton volé fait tomber toute la famille. Changer le mot de passe coupe les autres sessions.',
+      },
+      {
+        label: 'Isolation dans la base',
+        text: 'Row Level Security dans Postgres, avec le scope déclaré par requête. Une table nouvelle avec `tenantId` se protège seule : `SELECT app.apply_tenant_rls();` à la fin de la migration.',
+      },
+      {
+        label: 'Invitations et onboarding',
+        text: 'Jeton stocké seulement en hash, au plus une invitation en attente par e-mail (index unique partiel), et l’e-mail qui part après le commit — jamais dans la transaction.',
+      },
+      {
+        label: 'Cinq échanges par variable',
+        text: 'Stockage, e-mail, cache, file et captcha derrière des interfaces : `STORAGE_DRIVER`, `MAIL_DRIVER`, `CACHE_DRIVER`, `QUEUE_DRIVER`, `CAPTCHA_DRIVER`.',
+      },
+      {
+        label: 'Travail en arrière-plan',
+        text: 'BullMQ sur Redis, avec le worker dans un processus séparé et le tenant qui voyage avec le job. Sans lui, le job verrait une base vide et annoncerait un succès.',
+      },
+      {
+        label: 'Des tests qui prouvent',
+        text: 'Unitaires avec la base simulée, e2e contre un vrai Postgres sous le rôle restreint, et le kit d’UI du web dans Vitest.',
+      },
+    ],
+    decisionsTitle: 'La partie que personne n’écrit',
+    decisionsText:
+      'Chaque décision de sécurité a un fichier dans `docs/decisions/` et une section dans `CLAUDE.md`, avec la raison et ce qui arrive si quelqu’un la défait. C’est ce qu’un agent lit avant d’écrire — et ce que vous lisez six mois plus tard, quand vous ne vous souvenez plus pourquoi c’est comme ça.',
     numbersTitle: 'Les chiffres',
     numbers: [
       { value: '78 533', label: 'lignes de TypeScript' },
@@ -360,7 +502,7 @@ export const fr: Messages = {
     items: [
       {
         q: 'Qu’est-ce qui est testé, exactement ?',
-        a: 'La matrice des presets, intégralement : la CI génère un projet par preset, exige zéro occurrence de l’ancien nom, puis lance install, typecheck, tests unitaires et e2e. Plus all-on, all-off, et chaque feature désactivée isolément par-dessus le preset SaaS. Treize features booléennes font 8 192 combinaisons, et la CI ne teste pas 8 192 projets : les combinaisons hors de cette matrice sont autorisées et non testées — et le CLI le dit, en une ligne, sans drame. Un boilerplate qui promet des garanties qu’il ne vérifie pas est pire qu’un qui annonce la limite.',
+        a: 'La matrice des presets, intégralement : la CI génère un projet par preset, exige zéro occurrence de l’ancien nom, puis lance install, typecheck, tests unitaires et e2e. Plus all-on, all-off, et chaque feature désactivée isolément par-dessus le preset SaaS. Quatorze features booléennes font 16 384 combinaisons, et la CI ne teste pas 16 384 projets : les combinaisons hors de cette matrice sont autorisées et non testées — et le CLI le dit, en une ligne, sans drame. Un boilerplate qui promet des garanties qu’il ne vérifie pas est pire qu’un qui annonce la limite.',
       },
       {
         q: 'Et si je ne veux pas de multi-tenancy ?',
@@ -387,10 +529,13 @@ export const fr: Messages = {
 
   footer: {
     tagline: 'Un boilerplate SaaS qui a déjà pris les décisions ennuyeuses.',
-    repo: 'Code sur GitHub',
-    license: 'MIT',
+    brandNote:
+      'Générateur de projets à partir du boilerplate DontPanic. Vous choisissez les parties ; la commande génère le dépôt.',
     sourceNote: 'Les chiffres de cette page sortent de `wc -l` et `grep` sur le dépôt. Vérifiez.',
-    marvin:
-      'Me voilà, un cerveau de la taille d’une planète, occupé à assembler une ligne de commande. Ils appellent ça l’épanouissement professionnel.',
+    license: 'MIT',
+    productTitle: 'Produit',
+    docsTitle: 'Documentation',
+    contactTitle: 'Contact',
+    joke: 'Ce pied de page a été assemblé par une intelligence de la taille d’une planète. Il contient quatre listes de liens. Pas de panique : le reste du code est plus intéressant.',
   },
 };

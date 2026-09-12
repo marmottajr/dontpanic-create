@@ -23,7 +23,7 @@ export function RichText({ children }: { children: string }): ReactNode {
 
     if (part.startsWith('`') && part.endsWith('`')) {
       return (
-        <code key={key} className="font-mono text-[0.92em] text-amber">
+        <code key={key} className="font-mono text-[0.94em] text-amber">
           {part.slice(1, -1)}
         </code>
       );
@@ -31,7 +31,7 @@ export function RichText({ children }: { children: string }): ReactNode {
 
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <strong key={key} className="font-semibold text-text">
+        <strong key={key} className="font-semibold text-ink">
           {part.slice(2, -2)}
         </strong>
       );

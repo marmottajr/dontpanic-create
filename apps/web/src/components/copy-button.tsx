@@ -37,10 +37,10 @@ export function CopyButton({
         type="button"
         onClick={() => void copy(value)}
         className={cn(
-          'inline-flex shrink-0 items-center gap-2 rounded-control px-3.5 py-2 text-meta font-semibold transition-colors',
+          'inline-flex shrink-0 items-center gap-2 rounded-1 px-3.5 py-2 text-meta font-semibold transition-colors',
           variant === 'solid'
-            ? 'bg-amber-solid text-on-amber hover:brightness-105'
-            : 'border border-rule text-dim hover:border-rule-strong hover:text-text',
+            ? 'bg-amber text-on-amber hover:brightness-105'
+            : 'border border-rule text-dim hover:border-dim/60 hover:text-ink',
           className,
         )}
       >

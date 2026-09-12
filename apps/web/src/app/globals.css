@@ -3,14 +3,69 @@
 /* ───────────────────────────────────────────────────────────────────────────
    Tipografia auto-hospedada.
 
-   Uma família só — Archivo variável — usada em três larguras: comprimida para
-   rótulo técnico, normal para texto, expandida para o letreiro. O eixo `wdth`
-   é o que dispensa uma segunda família de display. Azeret Mono aparece apenas
-   onde o conteúdo É código: comando, flag, identificador.
+   Três papéis, duas famílias e meia:
 
-   Sem CDN: os .woff2 estão em /public/fonts e o `unicode-range` separa latin
-   de latin-ext para o navegador não baixar o segundo arquivo sem precisar.
+   - IBM Plex Sans — corpo, títulos de seção, interface.
+   - IBM Plex Mono — código, comando, e os rótulos em caixa alta que dão à
+     página o ar de folha de especificação.
+   - Archivo (variável, eixo `wdth`) — só o letreiro e os títulos de display.
+     É o que deixa "DON'T PANIC" fechar nas duas margens: o eixo de largura
+     estica o desenho da letra, não o espaço entre letras.
+
+   Os .woff2 do Plex vêm do `@fontsource/*` (OFL, subset latin) e estão
+   copiados em /public/fonts. Copiados, e não importados do node_modules, por
+   um motivo: assim toda declaração de fonte da página fica num arquivo só,
+   legível, e nenhuma depende de como o bundler resolve `url()` dentro de uma
+   dependência. Nada vem de CDN em runtime.
    ─────────────────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plex-sans-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plex-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plex-sans-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/plex-sans-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plex-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plex-mono-600.woff2') format('woff2');
+}
 
 @font-face {
   font-family: 'Archivo';
@@ -37,137 +92,127 @@
     U+A720-A7FF;
 }
 
-@font-face {
-  font-family: 'Azeret Mono';
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url('/fonts/azeret-latin.woff2') format('woff2');
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Azeret Mono';
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url('/fonts/azeret-latin-ext.woff2') format('woff2');
-  unicode-range:
-    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
-    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
-    U+A720-A7FF;
-}
-
 /* ───────────────────────────────────────────────────────────────────────────
    Paleta.
 
-   Os dois modos são desenhados, não invertidos. Claro é folha de especificação:
-   papel cinza-esverdeado frio, tinta petróleo, âmbar em ocre para aguentar
-   contraste sobre papel. Escuro é o petróleo de verdade: base azul-esverdeada
-   profunda (não cinza), osso frio no texto, âmbar cheio.
+   Escuro é o default — é o modo em que o público desta página passa o dia.
 
-   Cada matiz tem um trabalho só: âmbar é sinal e foco; verdete marca o que é
-   provado por teste. Nada mais colore nada.
+   O claro NÃO é o escuro invertido: é papel quente (#f6f3ec, não cinza) com o
+   âmbar escurecido para #f0a500, porque o âmbar do escuro sobre papel não
+   alcança contraste de texto. É decisão do design, e é a razão de os dois
+   blocos existirem escritos separados em vez de um `filter: invert`.
+
+   Cada matiz tem um trabalho: âmbar é sinal e ação; `--proof` marca o que é
+   provado por teste; `--danger` só aparece em erro de verdade.
    ─────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --c-bg: #edf1ef;
-  --c-surface: #f8faf9;
-  --c-well: #e2e8e5;
-  --c-rule: #c6d2ce;
-  --c-rule-strong: #9fb0ab;
-  --c-text: #0c1a1f;
-  --c-dim: #4a5f66;
-  --c-amber: #8a5206;
-  /* Só para o letreiro: texto grande exige 3:1, não 4.5:1, e o ocre do texto corrido
-     fica apagado num bloco de 100 pixels de altura. */
-  --c-amber-display: #a85c06;
-  --c-amber-solid: #f0a93a;
-  --c-on-amber: #17242a;
-  --c-verdigris: #0b6e58;
-  --c-focus: #8a5206;
-  --c-selection: #f5d7a1;
+  --bg: #0b0b0c;
+  --rule: #2b2b31;
+  --ink: #f4f2ef;
+  --amber: #ffc233;
+  --proof: #2fd6ae;
+  --danger: #ff7a6b;
+  --code-bg: #16161a;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.6);
+
+  /* Derivados: texto secundário e superfície elevada saem da mistura de
+     `--ink` com `--bg`, então trocar os dois leva o resto junto. */
+  --dim: color-mix(in oklab, var(--ink) 66%, var(--bg));
+  --faint: color-mix(in oklab, var(--ink) 45%, var(--bg));
+  --surface: color-mix(in oklab, var(--ink) 5%, var(--bg));
+  --proof-wash: color-mix(in oklab, var(--proof) 12%, var(--bg));
+  --amber-wash: color-mix(in oklab, var(--amber) 14%, var(--bg));
+  /* O âmbar é claro nos dois temas, então a tinta sobre ele é sempre escura. */
+  --on-amber: #15140f;
+  --selection: color-mix(in oklab, var(--amber) 28%, var(--bg));
+
+  --r-1: 2px;
 }
 
-:root:not([data-theme='light']) {
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+/* Sem escolha explícita, o sistema decide — e um sistema em claro recebe o
+   tema claro desenhado, não o escuro. */
+:root:not([data-theme='dark']) {
+  @media (prefers-color-scheme: light) {
+    color-scheme: light;
 
-    --c-bg: #0a1316;
-    --c-surface: #101e23;
-    --c-well: #0d191d;
-    --c-rule: #1d3138;
-    --c-rule-strong: #2c4750;
-    --c-text: #dee7e4;
-    --c-dim: #8aa3a9;
-    --c-amber: #f0a93a;
-    --c-amber-display: #f0a93a;
-    --c-amber-solid: #f0a93a;
-    --c-on-amber: #12212a;
-    --c-verdigris: #4fc3a1;
-    --c-focus: #f0a93a;
-    --c-selection: #234047;
+    --bg: #f6f3ec;
+    --rule: #ddd7c8;
+    --ink: #171614;
+    --amber: #f0a500;
+    --proof: #0e7d63;
+    --danger: #c2352a;
+    --code-bg: #efebe0;
+    --sh-1: 0 1px 2px rgba(60, 50, 30, 0.1);
+
+    --dim: color-mix(in oklab, var(--ink) 72%, var(--bg));
+    --faint: color-mix(in oklab, var(--ink) 50%, var(--bg));
+    --surface: color-mix(in oklab, var(--ink) 3%, var(--bg));
+    --proof-wash: color-mix(in oklab, var(--proof) 10%, var(--bg));
+    --amber-wash: color-mix(in oklab, var(--amber) 18%, var(--bg));
+    --selection: color-mix(in oklab, var(--amber) 35%, var(--bg));
   }
 }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
+[data-theme='light'] {
+  color-scheme: light;
 
-  --c-bg: #0a1316;
-  --c-surface: #101e23;
-  --c-well: #0d191d;
-  --c-rule: #1d3138;
-  --c-rule-strong: #2c4750;
-  --c-text: #dee7e4;
-  --c-dim: #8aa3a9;
-  --c-amber: #f0a93a;
-  --c-amber-display: #f0a93a;
-  --c-amber-solid: #f0a93a;
-  --c-on-amber: #12212a;
-  --c-verdigris: #4fc3a1;
-  --c-focus: #f0a93a;
-  --c-selection: #234047;
+  --bg: #f6f3ec;
+  --rule: #ddd7c8;
+  --ink: #171614;
+  --amber: #f0a500;
+  --proof: #0e7d63;
+  --danger: #c2352a;
+  --code-bg: #efebe0;
+  --sh-1: 0 1px 2px rgba(60, 50, 30, 0.1);
+
+  --dim: color-mix(in oklab, var(--ink) 72%, var(--bg));
+  --faint: color-mix(in oklab, var(--ink) 50%, var(--bg));
+  --surface: color-mix(in oklab, var(--ink) 3%, var(--bg));
+  --proof-wash: color-mix(in oklab, var(--proof) 10%, var(--bg));
+  --amber-wash: color-mix(in oklab, var(--amber) 18%, var(--bg));
+  --selection: color-mix(in oklab, var(--amber) 35%, var(--bg));
 }
 
 @theme inline {
-  --color-bg: var(--c-bg);
-  --color-surface: var(--c-surface);
-  --color-well: var(--c-well);
-  --color-rule: var(--c-rule);
-  --color-rule-strong: var(--c-rule-strong);
-  --color-text: var(--c-text);
-  --color-dim: var(--c-dim);
-  --color-amber: var(--c-amber);
-  --color-amber-display: var(--c-amber-display);
-  --color-amber-solid: var(--c-amber-solid);
-  --color-on-amber: var(--c-on-amber);
-  --color-verdigris: var(--c-verdigris);
-  --color-focus: var(--c-focus);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-rule: var(--rule);
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-amber: var(--amber);
+  --color-amber-wash: var(--amber-wash);
+  --color-on-amber: var(--on-amber);
+  --color-proof: var(--proof);
+  --color-proof-wash: var(--proof-wash);
+  --color-danger: var(--danger);
+  --color-code: var(--code-bg);
 
-  --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'Azeret Mono', ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: 'Archivo', 'IBM Plex Sans', system-ui, sans-serif;
 
-  --text-meta: 0.8125rem;
-  --text-meta--line-height: 1.35;
-  --text-small: 0.9375rem;
-  --text-small--line-height: 1.55;
-  --text-body: 1.0625rem;
-  --text-body--line-height: 1.62;
-  --text-lead: 1.1875rem;
-  --text-lead--line-height: 1.58;
-  --text-h3: 1.1875rem;
-  --text-h3--line-height: 1.3;
-  --text-h2: clamp(1.55rem, 1.1rem + 1.5vw, 2.15rem);
+  /* A escala medida do design. Os nomes dizem o papel, não o tamanho — é o que
+     permite mexer num degrau sem renomear classe em trinta arquivos. */
+  --text-meta: 11px;
+  --text-meta--line-height: 1.5;
+  --text-small: 12px;
+  --text-small--line-height: 1.5;
+  --text-body: 14px;
+  --text-body--line-height: 1.6;
+  --text-lead: 16px;
+  --text-lead--line-height: 1.65;
+  --text-h3: 19px;
+  --text-h3--line-height: 1.25;
+  --text-h2: clamp(28px, 3.6vw, 40px);
   --text-h2--line-height: 1.1;
-  --text-h1: clamp(1.95rem, 1.15rem + 2.8vw, 3.05rem);
-  --text-h1--line-height: 1.08;
+  --text-display: clamp(38px, 6vw, 62px);
+  --text-display--line-height: 0.88;
 
-  --radius-sharp: 2px;
-  --radius-control: 3px;
+  --radius-1: 2px;
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -175,7 +220,7 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 * {
-  border-color: var(--c-rule);
+  border-color: var(--rule);
 }
 
 html {
@@ -184,26 +229,29 @@ html {
 }
 
 body {
-  background-color: var(--c-bg);
-  color: var(--c-text);
+  background-color: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--text-body);
-  line-height: 1.62;
-  font-synthesis-weight: none;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background-color: var(--c-selection);
+  background-color: var(--selection);
 }
 
-/* Foco visível sempre, e com o mesmo desenho em todo controle: um contorno âmbar
-   com afastamento, que funciona sobre papel e sobre petróleo. */
+/* Foco visível sempre, e com o mesmo desenho em todo controle. */
 :focus-visible {
-  outline: 2px solid var(--c-focus);
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
   border-radius: 1px;
+}
+
+/* A rolagem da página para enquanto o modal está aberto. */
+body[data-scroll-locked='true'] {
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -221,96 +269,130 @@ body {
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
-   Larguras do eixo `wdth` do Archivo.
+   O rótulo mono em caixa alta.
 
-   `font-stretch` num variável não sintetiza nada: pede ao desenho a largura
-   que existe. Onde a fonte não carregar, degrada para a largura normal da
-   família de sistema — perde a graça, não a legibilidade.
+   É o detalhe que dá o caráter da página: "A PROVA", "01 · LOGIN SOCIAL", "NO
+   DONTPANIC". O tracking largo é o que transforma texto em etiqueta — sem ele,
+   11px em caixa alta lê como texto pequeno e apertado, não como rótulo de
+   folha de especificação.
    ─────────────────────────────────────────────────────────────────────────── */
 
-.w-condensed {
-  font-stretch: 80%;
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.w-wide {
-  font-stretch: 112%;
+/* Variante mais aberta, para cabeçalho de item e eyebrow de seção. */
+.label-wide {
+  letter-spacing: 0.16em;
 }
 
-.w-mast {
+/* O display: Archivo com o eixo de largura aberto. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 118%;
+  letter-spacing: -0.02em;
+}
+
+/* O letreiro: caixa alta e o eixo de largura aberto ao máximo. Em caixa alta "DON'T" e
+   "PANIC" medem quase o mesmo, e é isso que faz as duas linhas fecharem nas mesmas
+   margens sem nenhum ajuste manual. */
+.masthead {
+  font-family: var(--font-display);
+  font-weight: 800;
   font-stretch: 125%;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  line-height: 0.86;
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
    Estruturas repetidas
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* A coluna de leitura. Menos de 80 caracteres, como manda o ofício. */
+/* Coluna de leitura. Prosa longa em 66ch; apoio em 52ch, como o design mede. */
 .measure {
   max-width: 66ch;
 }
 
 .measure-tight {
-  max-width: 54ch;
-}
-
-/* A grade anotada: uma faixa estreita de metadados técnicos à esquerda e o texto
-   à direita. É o que faz a página ler como especificação comentada em vez de
-   coleção de cartões — e some numa coluna só abaixo de 62rem. */
-.spec {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.25rem;
-}
-
-@media (min-width: 62rem) {
-  .spec {
-    grid-template-columns: 13.5rem minmax(0, 1fr);
-    gap: 2.5rem;
-  }
+  max-width: 52ch;
 }
 
 /*
  * Item de grid tem `min-width: auto`, e essa largura mínima automática VENCE o
- * `stretch` da faixa. Um `<pre>`/`<code>` com `white-space: pre` lá dentro empurra o
- * min-content do item para além da tela, e a coluna passa a medir mais que a viewport
- * — a página inteira ganha rolagem horizontal, num telefone, por causa de uma linha de
- * código. `minmax(0, 1fr)` na faixa não resolve: ele dimensiona a faixa, não o item.
+ * `stretch` da faixa. Um `<code>` com `white-space: pre` lá dentro empurra o
+ * min-content do item para além da tela, e a coluna passa a medir mais que a
+ * viewport — a página inteira ganha rolagem horizontal, num telefone, por
+ * causa de uma linha de código. `minmax(0, 1fr)` na faixa não resolve: ele
+ * dimensiona a faixa, não o item.
  */
-.spec > * {
+.grid-safe > * {
   min-width: 0;
 }
 
-.rail {
-  font-size: var(--text-meta);
-  line-height: 1.4;
-  color: var(--c-dim);
-  font-stretch: 80%;
+/* Bloco de código com barra de caminho de arquivo.
+
+   O código é cinza de propósito, sem moldura de alerta: a tese da seção "A
+   prova" é que o trecho PARECE aceitável — é assim que ele passa no review.
+   Pintá-lo de vermelho entregaria a resposta antes da pergunta. */
+.code-block {
+  background-color: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
 }
 
-/* Poço de código: recuo, não cartão. Sem sombra e sem raio grande — a hierarquia
-   vem da diferença de fundo e da régua à esquerda. */
-.well {
-  background-color: var(--c-well);
-  border-left: 2px solid var(--c-rule-strong);
+.code-path {
   font-family: var(--font-mono);
   font-size: var(--text-meta);
-  line-height: 1.75;
+  color: var(--faint);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
 }
 
-.well code {
+.code-body {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  line-height: 1.7;
+  color: var(--dim);
+  padding: 14px 12px;
+  overflow-x: auto;
+}
+
+.code-body code {
   display: block;
-  padding: 0.9rem 1rem;
   white-space: pre;
   tab-size: 2;
 }
 
-/* O flash que mostra o que mudou no comando. Motion que responde a uma ação,
-   não enfeite de entrada. */
+/* Barra de rolagem discreta onde o conteúdo passa da largura. */
+.code-path::-webkit-scrollbar,
+.code-body::-webkit-scrollbar,
+.scroll-thin::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.code-path::-webkit-scrollbar-thumb,
+.code-body::-webkit-scrollbar-thumb,
+.scroll-thin::-webkit-scrollbar-thumb {
+  background-color: var(--rule);
+  border-radius: 3px;
+}
+
+/* O flash que mostra que o comando mudou. Motion que responde a uma ação, não
+   enfeite de entrada. */
 @keyframes command-changed {
   from {
-    background-color: color-mix(in oklab, var(--c-amber-solid) 26%, transparent);
+    background-color: var(--amber-wash);
   }
   to {
     background-color: transparent;
@@ -321,15 +403,18 @@ body {
   animation: command-changed 620ms ease-out;
 }
 
-/* Barra de rolagem discreta nos poços de código, onde o conteúdo passa da largura. */
-.well::-webkit-scrollbar,
-.scroll-thin::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
+/* Entrada do modal: um movimento curto, e só porque houve um clique. */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.well::-webkit-scrollbar-thumb,
-.scroll-thin::-webkit-scrollbar-thumb {
-  background-color: var(--c-rule-strong);
-  border-radius: 3px;
+.modal-in {
+  animation: modal-in 160ms ease-out;
 }

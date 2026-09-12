@@ -14,14 +14,13 @@
  * tipo que atravesse a fronteira entre os dois pacotes tem que ser apagável.
  */
 
-import type { FeatureId } from '@/lib/recipe-bridge';
-import type { PresetId } from '@/lib/recipe-bridge';
+import type { FeatureId, PresetId } from '@/lib/recipe-bridge';
 
 export const PROOF_IDS = [
   'oauth-identity',
   'oauth-2fa',
-  'trust-proxy',
-  'guard-scope',
+  'rls-where',
+  'password-reset',
   'db-owner',
 ] as const;
 
@@ -29,10 +28,10 @@ export type ProofId = (typeof PROOF_IDS)[number];
 
 export interface ProofCopy {
   id: ProofId;
+  /** O assunto, em caixa alta, ao lado do número: "LOGIN SOCIAL". */
+  eyebrow: string;
   /** O erro, enunciado. */
   title: string;
-  /** Por que ninguém pega: compila, passa no teste, passa no review. */
-  whyItPasses: string;
   /** A consequência concreta, com a vítima nomeada. */
   whatHappens: string;
   /** O que o DontPanic faz em vez disso. */
@@ -59,6 +58,22 @@ export interface QandA {
   a: string;
 }
 
+/** Cabeçalho comum a todo passo do assistente. */
+export interface WizardStep {
+  /** Rótulo curto do passo, em caixa alta — aparece no topo e na revisão. */
+  eyebrow: string;
+  /** A pergunta, em linguagem de gente. */
+  question: string;
+  /** O que muda conforme a resposta. Sem jargão. */
+  help: string;
+}
+
+/** Uma escolha, com o que ela implica. */
+export interface WizardChoice {
+  label: string;
+  help: string;
+}
+
 export interface Messages {
   meta: {
     title: string;
@@ -68,7 +83,6 @@ export interface Messages {
   nav: {
     skipToContent: string;
     proof: string;
-    configure: string;
     how: string;
     inside: string;
     faq: string;
@@ -85,22 +99,24 @@ export interface Messages {
     mastheadLabel: string;
     title: string;
     lead: string;
+    nameCta: string;
     commandLabel: string;
     commandNote: string;
-    ctaConfigure: string;
     ctaProof: string;
     facts: Fact[];
   };
 
   proof: {
+    eyebrow: string;
     title: string;
     lead: string;
     labels: {
-      surface: string;
-      code: string;
-      whyItPasses: string;
       whatHappens: string;
       ours: string;
+      /** "coberto por teste" — o selo do bloco verde. */
+      seal: string;
+      /** "casos", o substantivo que acompanha a contagem. */
+      cases: string;
     };
     items: ProofCopy[];
     moreTitle: string;
@@ -108,17 +124,12 @@ export interface Messages {
   };
 
   configurator: {
-    title: string;
-    lead: string;
-
-    nameLegend: string;
     nameLabel: string;
     namePlaceholder: string;
     nameHelp: string;
     slugLabel: string;
     slugHelp: string;
     slugDerived: string;
-    slugCustom: string;
     slugReset: string;
     applySuggestion: string;
 
@@ -135,21 +146,6 @@ export interface Messages {
       pascal: string;
     };
 
-    presetLegend: string;
-    presetNote: string;
-    presetReset: string;
-
-    featuresLegend: string;
-    featuresNote: string;
-    groups: {
-      access: string;
-      tenancy: string;
-      ops: string;
-      extras: string;
-    };
-
-    driversLegend: string;
-    driversNote: string;
     driverLabels: {
       db: string;
       storage: string;
@@ -157,21 +153,6 @@ export interface Messages {
       cache: string;
       queue: string;
       captcha: string;
-    };
-
-    oauthLegend: string;
-    oauthNote: string;
-
-    localesLegend: string;
-    localesNote: string;
-    defaultLocaleLabel: string;
-
-    optionsLegend: string;
-    optionLabels: {
-      git: string;
-      install: string;
-      docker: string;
-      force: string;
     };
 
     issuesTitle: string;
@@ -197,6 +178,47 @@ export interface Messages {
     presets: Record<PresetId, { label: string; summary: string; audience: string }>;
   };
 
+  /**
+   * O assistente.
+   *
+   * Uma pergunta por tela, em linguagem de gente: "Seu sistema vai atender várias
+   * empresas diferentes?" em vez de "habilitar multi-tenancy com RLS". O preset do
+   * passo 2 pré-responde os oito seguintes, então quem já sabe o que quer só clica
+   * Continuar — é isso que faz doze passos não cansarem.
+   */
+  wizard: {
+    open: string;
+    openHero: string;
+    close: string;
+    next: string;
+    back: string;
+    finish: string;
+    /** Pula o passo aceitando o que o preset já escolheu. */
+    recommended: string;
+    /** "Passo {n} de {total}" — `{n}` e `{total}` são substituídos. */
+    progress: string;
+    yes: string;
+    no: string;
+    /** Na revisão: volta ao passo daquela linha. */
+    edit: string;
+    steps: {
+      name: WizardStep;
+      preset: WizardStep;
+      tenancy: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      entry: WizardStep & {
+        choices: { open: WizardChoice; invite: WizardChoice; seed: WizardChoice };
+      };
+      social: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      twoFactor: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      languages: WizardStep & { choices: { one: WizardChoice; many: WizardChoice } };
+      plans: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      files: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      captcha: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      review: WizardStep;
+      done: WizardStep;
+    };
+  };
+
   how: {
     title: string;
     lead: string;
@@ -210,13 +232,14 @@ export interface Messages {
     title: string;
     lead: string;
     stackTitle: string;
+    stackHead: { tech: string; solves: string };
     /** Um papel por item de `STACK` — mesma ordem, mesmo comprimento. */
     stackRoles: string[];
-    portsTitle: string;
-    portsLead: string;
-    portsHead: { resource: string; adapters: string; env: string };
-    /** Um nome por linha de `PORTS` — mesma ordem, mesmo comprimento. */
-    portsResources: string[];
+    factoryTitle: string;
+    /** Seis tópicos, na grade 2×3. */
+    factory: LabelledText[];
+    decisionsTitle: string;
+    decisionsText: string;
     numbersTitle: string;
     numbers: Fact[];
   };
@@ -229,9 +252,12 @@ export interface Messages {
 
   footer: {
     tagline: string;
-    repo: string;
-    license: string;
+    brandNote: string;
     sourceNote: string;
-    marvin: string;
+    license: string;
+    productTitle: string;
+    docsTitle: string;
+    contactTitle: string;
+    joke: string;
   };
 }

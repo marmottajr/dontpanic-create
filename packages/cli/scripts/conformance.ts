@@ -454,6 +454,16 @@ async function main(): Promise<void> {
 
   if (all.length === 0) {
     console.log('Conformidade: tudo passou.');
+    if (!e2e) {
+      // Dizer o que NÃO foi verificado é parte de dizer o que foi. Um "tudo passou" que
+      // omite a suíte ausente deixa a pessoa mais confiante do que os fatos permitem.
+      console.log(
+        '\nO e2e não rodou (sem `--e2e`), então o isolamento entre empresas do projeto\n' +
+          'gerado NÃO foi verificado nesta execução — é o `tenant-isolation.e2e-spec.ts`,\n' +
+          'e ele falha devolvendo zero linhas, não erro. Antes de empurrar mudanças no\n' +
+          'caminho de geração, rode: pnpm conformance --case=preset-saas --e2e',
+      );
+    }
     return;
   }
 

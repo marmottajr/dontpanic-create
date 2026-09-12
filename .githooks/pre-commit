@@ -1,0 +1,48 @@
+#!/bin/sh
+# Lembrete de rodar a conformidade com e2e antes de commitar.
+#
+# NÃO BLOQUEIA. Um hook que impede o commit obriga a decorar `--no-verify`, e aí o
+# próximo aviso — o que importava — também é pulado.
+#
+# E não avisa em todo commit: só quando o que está indo mexe no caminho que pode
+# quebrar o projeto gerado em silêncio. Um aviso que aparece sempre é um aviso que
+# ninguém lê, e o objetivo aqui é o contrário — que quando ele aparecer, a pessoa pare.
+#
+# Instalado por `pnpm install` (o script `prepare` da raiz aponta `core.hooksPath`
+# para cá). Para pular num commit específico: `git commit --no-verify`.
+
+set -e
+
+ARQUIVOS=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$ARQUIVOS" ] && exit 0
+
+# O que decide se o projeto gerado compila e se o isolamento entre empresas sobrevive:
+# o manifesto de remoção, os editores de costura, o motor de rename, a baseline SQL, a
+# geração de env e a tag do template.
+RELEVANTES=$(printf '%s\n' "$ARQUIVOS" | grep -E '^packages/cli/(src/(features|seams)/|src/(rename|prisma|env|template|generate|compose|secrets)\.ts|template\.json|scripts/sync-template\.ts)' || true)
+
+[ -z "$RELEVANTES" ] && exit 0
+
+QUANTOS=$(printf '%s\n' "$RELEVANTES" | wc -l | tr -d ' ')
+
+printf '\n'
+printf '  \033[33m●\033[0m Este commit mexe em %s arquivo(s) do caminho de geração.\n' "$QUANTOS"
+printf '\n'
+printf '    A suíte e2e não roda no CI — ela sobe Postgres, aplica as migrations e abre\n'
+printf '    um navegador, e ficou como passo local. É ela que roda o\n'
+printf '    \033[1mtenant-isolation.e2e-spec.ts\033[0m no projeto GERADO, o único teste que prova\n'
+printf '    que o isolamento entre empresas continua de pé depois da poda e do rename.\n'
+printf '\n'
+printf '    Ele falha calado: sem o escopo certo, o Row Level Security devolve zero\n'
+printf '    linhas em vez de erro, e o projeto parece funcionar com o banco vazio.\n'
+printf '\n'
+printf '    \033[1mRode antes de empurrar:\033[0m\n'
+printf '      docker compose up -d          # na pasta do dontpanic, para ter o Postgres\n'
+printf '      pnpm conformance --e2e        # a matriz inteira\n'
+printf '      pnpm conformance --case=preset-saas --e2e   # só o preset default, mais rápido\n'
+printf '\n'
+printf '    Arquivos:\n'
+printf '%s\n' "$RELEVANTES" | sed 's/^/      /'
+printf '\n'
+
+exit 0

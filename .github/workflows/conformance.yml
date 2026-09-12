@@ -23,9 +23,9 @@ on:
         description: 'Rodar só um caso (id do CASES em scripts/conformance.ts)'
         required: false
       e2e:
-        description: 'Incluir a suíte e2e'
+        description: 'Incluir a suíte e2e (exige Postgres e navegador; lento)'
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: conformance-${{ github.ref }}
@@ -126,10 +126,25 @@ jobs:
       - run: pnpm --filter create-dontpanic build
 
       - name: Conformidade
+        # Sem `--e2e` por padrão.
+        #
+        # A suíte e2e do projeto gerado sobe Postgres, roda migrations e abre um
+        # navegador — são minutos por caso, vezes oito casos. A decisão (do Marcio) é
+        # mantê-la como passo local, rodado antes de commitar, e deixar o CI cuidando do
+        # que é rápido: a geração, o rename completo, o build, o lint e os testes
+        # unitários do projeto gerado.
+        #
+        # O que se perde tem nome: `tenant-isolation.e2e-spec.ts` é o único teste que
+        # prova que o isolamento entre empresas continua valendo no projeto GERADO — e
+        # ele falha de um jeito silencioso, devolvendo zero linhas em vez de erro. Por
+        # isso o hook de pre-commit avisa quando um commit toca o que pode quebrá-lo.
+        #
+        # Para rodar a matriz inteira com e2e: Actions › Conformidade › Run workflow ›
+        # marcar "Incluir a suíte e2e".
         run: |
           pnpm --filter create-dontpanic conformance \
             --case=${{ matrix.case }} \
-            ${{ (github.event_name == 'workflow_dispatch' && inputs.e2e == false) && '' || '--e2e' }}
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.e2e) && '--e2e' || '' }}
         env:
           # O projeto gerado cria as suas próprias roles a partir desta conexão de
           # superusuário; a role restrita que a aplicação usa nasce no setup dele, e é

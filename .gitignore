@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.next/
+out/
+.turbo/
+coverage/
+*.log
+.DS_Store
+.env
+.env.local
+
+# O template é sincronizado a partir do repo dontpanic por script.
+# Não é versionado aqui: a fonte da verdade é a tag do repo dontpanic.
+packages/cli/template/
+
+# Saída dos testes de conformidade
+.conformance/

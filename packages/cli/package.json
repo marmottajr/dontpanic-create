@@ -1,0 +1,52 @@
+{
+  "name": "@dontpanic/create",
+  "version": "0.1.0",
+  "description": "Gera um SaaS pronto — auth, 2FA, multi-tenancy com RLS, i18n — só com as partes que você escolheu.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-dontpanic": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./recipe": "./dist/recipe.js",
+    "./naming": "./dist/naming.js",
+    "./types": "./dist/types.js",
+    "./features": "./dist/features/manifest.js"
+  },
+  "files": [
+    "dist",
+    "template",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24.9"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/**/*.test.ts",
+    "sync-template": "node --experimental-strip-types scripts/sync-template.ts",
+    "conformance": "node --experimental-strip-types scripts/conformance.ts",
+    "lint": "eslint src test scripts"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "6.0.3"
+  },
+  "keywords": [
+    "saas",
+    "boilerplate",
+    "nestjs",
+    "nextjs",
+    "prisma",
+    "multi-tenant",
+    "rls",
+    "generator"
+  ]
+}

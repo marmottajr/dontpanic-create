@@ -1,0 +1,6 @@
+packages:
+  - packages/*
+  - apps/*
+
+# Mesma disciplina de supply-chain do dontpanic: nada recém-publicado.
+minimumReleaseAge: 1440

@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+
+    // O código-fonte importa com extensão `.ts` (`./types.ts`), que é a forma que
+    // `node --experimental-strip-types` resolve em tempo de execução — é o que permite
+    // rodar os testes sem passo de build. Para o `tsc` aceitar isso num import de VALOR
+    // (um `import type` já era aceito) precisamos das duas opções abaixo: a primeira
+    // permite escrever `.ts`, a segunda reescreve para `.js` no que é emitido em `dist`.
+    // Sem elas, `pnpm build` e `pnpm typecheck` divergem do runtime.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src/**/*.ts"]
+}

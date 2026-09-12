@@ -1,0 +1,29 @@
+{
+  "name": "dontpanic-create-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Gerador de projetos e landing page do DontPanic",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=24.9"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "sync-template": "pnpm --filter @dontpanic/create sync-template",
+    "conformance": "pnpm --filter @dontpanic/create conformance",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8",
+    "typescript": "6.0.3",
+    "prettier": "^3.6.2",
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "typescript-eslint": "^8.46.0"
+  }
+}

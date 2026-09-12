@@ -1,0 +1,5 @@
+.next/
+out/
+tsconfig.tsbuildinfo
+AGENTS.md
+CLAUDE.md

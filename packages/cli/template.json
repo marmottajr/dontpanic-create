@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "De onde o template vem. Esta é a fonte da verdade do `pnpm sync-template`, e a",
+    "razão de ele existir: uma receita mais uma versão do gerador têm de produzir o",
+    "mesmo projeto hoje e em dois anos, e isso só vale se o código base estiver preso a",
+    "um commit, não a `main`.",
+    "",
+    "`tag` é o que um humano lê e o que o changelog do boilerplate nomeia; `commit` é o",
+    "que o sync verifica. Tag pode ser movida (`git tag -f`), commit não — então quem",
+    "manda na reprodutibilidade é o commit, e a tag é a etiqueta legível dele.",
+    "",
+    "Para subir de versão: `pnpm sync-template --from=<caminho do dontpanic> --tag=vX.Y.Z",
+    "--write`, que resolve o commit da tag e reescreve este arquivo. Nunca edite o",
+    "`commit` à mão: o valor certo é o que o git resolveu, e um sha digitado errado só",
+    "aparece no próximo clone limpo."
+  ],
+  "repo": "marmottajr/dontpanic",
+  "url": "https://github.com/marmottajr/dontpanic.git",
+  "tag": "v0.3.0",
+  "commit": "4b32926178dd69e1618bb2f9f848c1f9ff8c90a5",
+  "syncedAt": "2026-09-12T19:02:43.520Z",
+  "stats": {
+    "files": 512,
+    "bytes": 1875659,
+    "tarballGzipBytes": 494845
+  }
+}

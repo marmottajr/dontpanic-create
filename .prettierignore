@@ -1,0 +1,6 @@
+packages/cli/template/
+dist/
+.next/
+out/
+pnpm-lock.yaml
+.conformance/

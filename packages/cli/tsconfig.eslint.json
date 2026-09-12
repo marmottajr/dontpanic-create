@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // `allowImportingTsExtensions` exige `noEmit`; aqui é só para o serviço de tipos do
+    // ESLint, que não emite nada.
+    "rootDir": "."
+  },
+  // O tsconfig de build cobre só `src`, porque é dali que sai o `dist`. O ESLint com
+  // regras type-checked precisa de um projeto que inclua TAMBÉM os testes e os scripts —
+  // senão ele reclama de "arquivo não incluído em nenhum projeto" e o lint desses
+  // arquivos simplesmente não acontece, o que é pior que falhar.
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
+}

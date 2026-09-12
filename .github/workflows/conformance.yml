@@ -1,0 +1,130 @@
+name: Conformidade
+
+# O portão de verdade: prova que um projeto gerado não tem sobra do nome antigo, instala,
+# compila, passa nos testes e — no caminho que importa — passa no teste de isolamento
+# entre empresas sob a role restrita do Postgres.
+#
+# Roda na matriz de presets, não na matriz de combinações: 13 features booleanas são 8192
+# combinações e testar 8192 projetos é fantasia. Ver docs/decisions/0003.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Semanal, porque a fonte do template é uma tag de OUTRO repo. Uma mudança no
+    # boilerplate pode desfazer uma costura do manifesto sem que nada neste repo mude —
+    # e aí nenhum push daqui detectaria. Este agendamento é o que transforma essa
+    # divergência em e-mail de CI em vez de reclamação de usuário.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      case:
+        description: 'Rodar só um caso (id do CASES em scripts/conformance.ts)'
+        required: false
+      e2e:
+        description: 'Incluir a suíte e2e'
+        type: boolean
+        default: true
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: ${{ matrix.case }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      # Sem fail-fast: quando duas costuras quebram juntas, ver as duas na mesma
+      # execução é a diferença entre um diagnóstico e dois ciclos de CI.
+      fail-fast: false
+      matrix:
+        case:
+          - preset-minimal
+          - preset-saas
+          - preset-complete
+          - preset-internal
+          - nome-acentuado
+          - nome-camelcase
+          - tudo-ligado
+          - tudo-desligado
+
+    services:
+      postgres:
+        # A imagem tem que casar a do boilerplate: o RLS usa PL/pgSQL e
+        # FORCE ROW LEVEL SECURITY, e uma versão mais velha aceitaria o DDL e mudaria o
+        # comportamento no detalhe que o teste de isolamento verifica.
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Checkout do boilerplate, na tag declarada
+        uses: actions/checkout@v5
+        with:
+          repository: marmottajr/dontpanic
+          # A tag vem de packages/cli/template.json. Fixar a referência aqui é o que
+          # torna a execução reprodutível: um `main` móvel faria o CI falhar por
+          # mudança alheia sem nenhum commit deste repo.
+          ref: ${{ vars.BOILERPLATE_REF || 'v0.3.0' }}
+          path: .boilerplate
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Materializar o template
+        run: pnpm sync-template --from=.boilerplate
+
+      - run: pnpm --filter @dontpanic/create build
+
+      - name: Conformidade
+        run: |
+          pnpm --filter @dontpanic/create conformance \
+            --case=${{ matrix.case }} \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.e2e == false) && '' || '--e2e' }}
+        env:
+          # O projeto gerado cria as suas próprias roles a partir desta conexão de
+          # superusuário; a role restrita que a aplicação usa nasce no setup dele, e é
+          # sob ela que o e2e roda. É isso que faz o teste de isolamento provar algo.
+          CONFORMANCE_PG_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          CONFORMANCE_REDIS_URL: redis://localhost:6379
+
+      - name: Guardar o relatório e o projeto que falhou
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-${{ matrix.case }}
+          path: |
+            .conformance/report.json
+            /tmp/dp-conformance-*/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, typecheck e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          # O boilerplate exige >=24.9 (é a partir daí que o Jest carrega ESM
+          # nativamente com require(esm)). O gerador acompanha para não gerar um
+          # projeto que a própria toolchain do gerador não conseguiria rodar.
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - name: Build (CLI + landing)
+        run: pnpm build
+
+      - name: A landing precisa ser export estático de verdade
+        # `output: 'export'` falha em silêncio se alguém introduzir uma rota dinâmica ou
+        # uma server action: o build passa e o `out/` sai incompleto. Conferir o
+        # artefato é o que pega isso.
+        run: |
+          test -f apps/web/out/index.html || {
+            echo "apps/web/out/index.html não existe — o export estático não rodou."
+            exit 1
+          }
+
+      - name: O pacote publicável não pode vazar o template errado
+        # `npm pack --dry-run` mostra exatamente o que iria para o registry. O template
+        # é grande e cheio de dotfiles; um `files` mal configurado publica um pacote que
+        # não gera nada, e isso só aparece quando um usuário reclama.
+        run: |
+          cd packages/cli
+          npm pack --dry-run 2>&1 | tail -40

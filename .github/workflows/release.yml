@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publicar no npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write # provenance
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Checkout do boilerplate, na tag declarada
+        uses: actions/checkout@v5
+        with:
+          repository: marmottajr/dontpanic
+          ref: ${{ vars.BOILERPLATE_REF || 'v0.3.0' }}
+          path: .boilerplate
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm sync-template --from=.boilerplate
+      - run: pnpm --filter @dontpanic/create build
+
+      # A conformidade roda ANTES de publicar, no modo profundo e sem e2e (que exige
+      # serviços). Publicar um gerador que produz projeto quebrado é pior que atrasar o
+      # release: o estrago já está no registry e o usuário descobre antes de nós.
+      - name: Conformidade (pré-publicação)
+        run: pnpm --filter @dontpanic/create conformance --case=preset-saas
+
+      - name: Publicar
+        run: pnpm --filter @dontpanic/create publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

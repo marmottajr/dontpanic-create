@@ -1,6 +1,6 @@
 {
-  "name": "@dontpanic/create",
-  "version": "0.1.0",
+  "name": "create-dontpanic",
+  "version": "1.0.0",
   "description": "Gera um SaaS pronto — auth, 2FA, multi-tenancy com RLS, i18n — só com as partes que você escolheu.",
   "license": "MIT",
   "type": "module",
@@ -48,5 +48,17 @@
     "multi-tenant",
     "rls",
     "generator"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marmottajr/dontpanic-create.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/marmottajr/dontpanic-create#readme",
+  "bugs": {
+    "url": "https://github.com/marmottajr/dontpanic-create/issues"
+  }
 }

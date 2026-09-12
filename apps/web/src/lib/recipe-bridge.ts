@@ -36,9 +36,9 @@ export {
   reconcileRecipe,
   toFlags,
   validateRecipe,
-} from '@dontpanic/create/recipe';
+} from 'create-dontpanic/recipe';
 
-export type { PresetDefinition, PresetId, RecipeIssue } from '@dontpanic/create/recipe';
+export type { PresetDefinition, PresetId, RecipeIssue } from 'create-dontpanic/recipe';
 
 // ── Nomes ────────────────────────────────────────────────────────────────────
 export {
@@ -48,9 +48,9 @@ export {
   slugify,
   validateDisplayName,
   validateSlug,
-} from '@dontpanic/create/naming';
+} from 'create-dontpanic/naming';
 
-export type { ValidationIssue } from '@dontpanic/create/naming';
+export type { ValidationIssue } from 'create-dontpanic/naming';
 
 // ── Tipos do gerador ─────────────────────────────────────────────────────────
 export {
@@ -62,7 +62,7 @@ export {
   OAUTH_PROVIDERS,
   QUEUE_DRIVERS,
   STORAGE_DRIVERS,
-} from '@dontpanic/create/types';
+} from 'create-dontpanic/types';
 
 export type {
   CacheDriver,
@@ -79,4 +79,4 @@ export type {
   QueueDriver,
   Recipe,
   StorageDriver,
-} from '@dontpanic/create/types';
+} from 'create-dontpanic/types';

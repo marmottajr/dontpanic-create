@@ -1,48 +1,162 @@
-name: Release
+name: Publish create-dontpanic
+
+# Publica o pacote no npm quando uma tag de versão é empurrada (ex.: `v1.0.0`).
+#
+# Mesmo desenho do `publish-create-dontpanic.yml` do boilerplate — a tag tem de casar com
+# a versão do `package.json`, e versão já publicada é pulada em vez de dar erro — com duas
+# etapas que só existem aqui, porque aqui o template vem de OUTRO repositório:
+#
+#   1. checkout do `marmottajr/dontpanic` na tag declarada em `packages/cli/template.json`
+#      e `pnpm sync-template`. Sem isso o pacote sai sem `template/`, e o `npx` de um
+#      usuário falha no primeiro comando com "template ausente".
+#   2. `pnpm conformance`, que gera um projeto de verdade e prova que ele não tem sobra do
+#      nome antigo e que instala e compila. Publicar um gerador que produz projeto
+#      quebrado é pior que atrasar o release: o estrago já está no registry, e quem
+#      descobre é o usuário.
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Rodar tudo menos o publish'
+        type: boolean
+        default: false
+
+concurrency: publish-create-dontpanic-${{ github.ref }}
+
+permissions:
+  contents: read
+  id-token: write # provenance
 
 jobs:
   publish:
-    name: Publicar no npm
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      id-token: write # provenance
+    timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - name: Checkout do boilerplate, na tag declarada
-        uses: actions/checkout@v5
+      - name: Ler a tag do boilerplate declarada no template.json
+        id: template
+        run: |
+          REF="$(node -p "require('./packages/cli/template.json').tag")"
+          SHA="$(node -p "require('./packages/cli/template.json').commit")"
+          echo "Template declarado: $REF ($SHA)"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout do boilerplate
+        uses: actions/checkout@v7
         with:
           repository: marmottajr/dontpanic
-          ref: ${{ vars.BOILERPLATE_REF || 'v0.3.0' }}
+          ref: ${{ steps.template.outputs.ref }}
           path: .boilerplate
+          # `fetch-depth: 0` para o `sync-template` conseguir resolver a tag em commit e
+          # conferir que o `template.json` não mente sobre a procedência.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm sync-template --from=.boilerplate
-      - run: pnpm --filter @dontpanic/create build
 
-      # A conformidade roda ANTES de publicar, no modo profundo e sem e2e (que exige
-      # serviços). Publicar um gerador que produz projeto quebrado é pior que atrasar o
-      # release: o estrago já está no registry e o usuário descobre antes de nós.
-      - name: Conformidade (pré-publicação)
-        run: pnpm --filter @dontpanic/create conformance --case=preset-saas
+      - name: A tag tem de casar com a versão do pacote
+        id: version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./packages/cli/package.json').version")"
+          echo "Tag: $TAG_VERSION · package.json: $PKG_VERSION"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::A tag $GITHUB_REF_NAME não casa com a versão $PKG_VERSION do pacote."
+            exit 1
+          fi
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Publicar
-        run: pnpm --filter @dontpanic/create publish --access public --no-git-checks --provenance
+      - name: Pular se a versão já está no npm
+        id: check
+        run: |
+          if npm view "create-dontpanic@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "create-dontpanic@${{ steps.version.outputs.version }} já está no npm — pulando."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Materializar o template
+        if: steps.check.outputs.skip != 'true'
+        run: pnpm sync-template --from=.boilerplate --tag=${{ steps.template.outputs.ref }}
+
+      - name: O template tem de estar dentro do pacote
+        if: steps.check.outputs.skip != 'true'
+        # Um `files` mal configurado publica um pacote sem `template/` — que instala, roda
+        # e falha no primeiro uso. Conferir o tarball é o que pega isso antes do registry.
+        run: |
+          test -f packages/cli/template/package.json || {
+            echo "::error::template/ não foi materializado."
+            exit 1
+          }
+          cd packages/cli
+          npm pack --dry-run --json 2>/dev/null > /tmp/pack.json
+          node -e '
+            const [p] = JSON.parse(require("node:fs").readFileSync("/tmp/pack.json", "utf8"));
+            const temTemplate = p.files.some((f) => f.path.startsWith("template/"));
+            const mb = (p.unpackedSize / 1024 / 1024).toFixed(1);
+            console.log(`${p.entryCount} arquivos no tarball · ${mb} MB descompactado`);
+            if (!temTemplate) {
+              console.error("::error::o tarball não contém template/");
+              process.exit(1);
+            }
+          '
+
+      - name: Typecheck
+        if: steps.check.outputs.skip != 'true'
+        run: pnpm typecheck
+
+      - name: Lint
+        if: steps.check.outputs.skip != 'true'
+        run: pnpm lint
+
+      - name: Testes
+        if: steps.check.outputs.skip != 'true'
+        run: pnpm test
+
+      - name: Build
+        if: steps.check.outputs.skip != 'true'
+        run: pnpm build
+
+      - name: Conformidade — gera um projeto de verdade e valida
+        if: steps.check.outputs.skip != 'true'
+        # Sem `--e2e`: aquela suíte exige Postgres e Redis, e roda na matriz completa do
+        # `conformance.yml`. Aqui o alvo é provar que o preset default gera, instala e
+        # compila antes de o pacote sair.
+        run: pnpm --filter create-dontpanic conformance --case=preset-saas
+
+      - name: Publicar no npm
+        if: steps.check.outputs.skip != 'true' && inputs.dry_run != true
+        run: pnpm --filter create-dontpanic publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### create-dontpanic@${{ steps.version.outputs.version }}"
+            echo
+            echo "- template: \`${{ steps.template.outputs.ref }}\` (\`${{ steps.template.outputs.sha }}\`)"
+            if [ "${{ steps.check.outputs.skip }}" = "true" ]; then
+              echo "- **pulado**: esta versão já está no npm"
+            elif [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "- **ensaio**: tudo verificado, nada publicado"
+            else
+              echo "- publicado"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

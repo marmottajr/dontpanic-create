@@ -6,7 +6,7 @@ Dois artefatos e um portão:
 
 | Artefato | Onde | O que faz |
 | -------- | ---- | --------- |
-| `@dontpanic/create` | `packages/cli` | CLI que gera um projeto a partir de uma receita |
+| `create-dontpanic` | `packages/cli` | CLI que gera um projeto a partir de uma receita |
 | Landing page | `apps/web` | Site estático que monta a linha de comando |
 | Conformance CI | `.github/workflows` | Gera projetos por preset e prova que compilam e passam |
 
@@ -15,7 +15,7 @@ Dois artefatos e um portão:
 A landing page **não gera código**. Ela monta uma string:
 
 ```
-npx @dontpanic/create acme --preset=saas --i18n=pt,en --no-oauth
+npx create-dontpanic acme --preset=saas --i18n=pt,en --no-oauth
 ```
 
 Sem servidor, sem fila de build, sem zip para expirar em cache. O site pode ser

@@ -470,7 +470,7 @@ describe('toFlags / buildCommand', () => {
     const recipe = recipeFrom('saas', (r) => {
       r.features.twoFactor = false;
     });
-    assert.equal(buildCommand(recipe), "npx @dontpanic/create 'Acme Corp' --no-2fa");
+    assert.equal(buildCommand(recipe), "npx create-dontpanic 'Acme Corp' --no-2fa");
   });
 
   it('só emite --slug quando ele não sai do nome', () => {

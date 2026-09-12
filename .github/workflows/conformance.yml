@@ -4,8 +4,8 @@ name: Conformidade
 # compila, passa nos testes e — no caminho que importa — passa no teste de isolamento
 # entre empresas sob a role restrita do Postgres.
 #
-# Roda na matriz de presets, não na matriz de combinações: 13 features booleanas são 8192
-# combinações e testar 8192 projetos é fantasia. Ver docs/decisions/0003.
+# Roda na matriz de presets, não na matriz de combinações: 14 features booleanas são 16.384
+# combinações, e testar 16.384 projetos é fantasia. Ver docs/decisions/0003.
 
 on:
   push:
@@ -79,10 +79,10 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Checkout do boilerplate, na tag declarada
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: marmottajr/dontpanic
           # A tag vem de packages/cli/template.json. Fixar a referência aqui é o que
@@ -94,7 +94,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -104,11 +104,11 @@ jobs:
       - name: Materializar o template
         run: pnpm sync-template --from=.boilerplate
 
-      - run: pnpm --filter @dontpanic/create build
+      - run: pnpm --filter create-dontpanic build
 
       - name: Conformidade
         run: |
-          pnpm --filter @dontpanic/create conformance \
+          pnpm --filter create-dontpanic conformance \
             --case=${{ matrix.case }} \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.e2e == false) && '' || '--e2e' }}
         env:

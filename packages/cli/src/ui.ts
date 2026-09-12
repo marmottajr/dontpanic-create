@@ -79,7 +79,7 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 
 export function banner(version: string): void {
   blank();
-  out(`${c.bold(c.cyan('@dontpanic/create'))} ${c.dim(`v${version}`)}`);
+  out(`${c.bold(c.cyan('create-dontpanic'))} ${c.dim(`v${version}`)}`);
   // A voz do Marvin mora nas bordas — aqui, e nunca numa mensagem de erro.
   out(c.dim('Um SaaS inteiro. Não entre em pânico.'));
   blank();

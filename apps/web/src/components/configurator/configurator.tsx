@@ -56,7 +56,7 @@ export function Configurator({ messages }: { messages: Messages }): React.ReactE
       <Shell>
         <div className="spec">
           <div className="rail">
-            <span className="font-mono">@dontpanic/create</span>
+            <span className="font-mono">create-dontpanic</span>
             <div className="mt-1">docs/decisions/0003</div>
           </div>
           <div>

@@ -13,8 +13,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "sync-template": "pnpm --filter @dontpanic/create sync-template",
-    "conformance": "pnpm --filter @dontpanic/create conformance",
+    "sync-template": "pnpm --filter create-dontpanic sync-template",
+    "conformance": "pnpm --filter create-dontpanic conformance",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

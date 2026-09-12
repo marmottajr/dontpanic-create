@@ -557,7 +557,7 @@ export function buildCommand(recipe: Recipe, basePreset?: PresetId): string {
   // O nome vem sempre, mesmo quando é derivável: é o argumento posicional, e um comando
   // sem ele cai em modo interativo — exatamente o que a linha copiável existe para evitar.
   const name = recipe.project.displayName.trim() || recipe.project.slug;
-  return ['npx @dontpanic/create', shellQuote(name), ...flags].join(' ');
+  return ['npx create-dontpanic', shellQuote(name), ...flags].join(' ');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -837,7 +837,7 @@ export function parseArgs(argv: string[]): ParseResult {
   const interactive = positional === undefined && nameFlag === undefined;
   if (interactive && yes) {
     errors.push(
-      'Com --yes não há como perguntar o nome do projeto. Passe o nome: npx @dontpanic/create "Minha Empresa" --yes.',
+      'Com --yes não há como perguntar o nome do projeto. Passe o nome: npx create-dontpanic "Minha Empresa" --yes.',
     );
   }
 

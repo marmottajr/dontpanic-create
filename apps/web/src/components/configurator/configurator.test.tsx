@@ -205,7 +205,7 @@ describe('configurador', () => {
       screen.getByRole('switch', { name: new RegExp(ptBR.configurator.features.easterEggs.label) }),
     );
 
-    expect(commandText()).toContain('npx @dontpanic/create');
+    expect(commandText()).toContain('npx create-dontpanic');
     expect(spy).toHaveBeenCalled();
   });
 

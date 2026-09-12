@@ -34,4 +34,4 @@ export const PORTS = [
 ] as const;
 
 export const REPO_URL = 'https://github.com/marmottajr/dontpanic';
-export const NPM_PACKAGE = '@dontpanic/create';
+export const NPM_PACKAGE = 'create-dontpanic';

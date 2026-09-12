@@ -70,7 +70,7 @@ export interface PromptOptions {
  */
 export async function runPrompts({ seed }: PromptOptions): Promise<Recipe | null> {
   try {
-    intro(c.bold(c.cyan('@dontpanic/create')));
+    intro(c.bold(c.cyan('create-dontpanic')));
 
     const project = await askIdentity(seed.project);
     showDerivedNames(project);

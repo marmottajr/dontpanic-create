@@ -8,7 +8,7 @@ O boilerplate em si **não** vive aqui. Vive em `marmottajr/dontpanic`, e este r
 por tag.
 
 ```
-packages/cli/     @dontpanic/create — o gerador
+packages/cli/     create-dontpanic — o gerador
 apps/web/         a landing page (Next.js, export estático)
 docs/             arquitetura, decisões e os mapas da auditoria
 ```
@@ -19,16 +19,16 @@ O site monta uma linha de comando; o CLI a executa contra uma cópia real do boi
 apagando o que não foi pedido e renomeando o que sobrou.
 
 ```bash
-npx @dontpanic/create acme --preset=saas --i18n=pt,en --no-oauth
+npx create-dontpanic acme --preset=saas --i18n=pt,en --no-oauth
 ```
 
-> **Decisão pendente: o nome no npm.** `create-dontpanic` **já existe no registry e é do
-> Marcio** — é o instalador anterior, que vive em `packages/create-dontpanic` dentro do
-> boilerplate e troca apenas `package.json:name` e `container_name`. Este pacote é o
-> sucessor dele. Publicar como `create-dontpanic@1.0.0` mantém `npx create-dontpanic`
-> valendo para quem já conhece e é o caminho mais curto; publicar como `@dontpanic/create`
-> deixa os dois coexistirem, ao custo de dois pacotes fazendo a mesma coisa. A
-> recomendação é a primeira, e trocar é uma linha no `package.json`. Ver
+> **É o mesmo `npx` de sempre.** `create-dontpanic` já existia no registry — era o
+> instalador anterior, que vivia em `packages/create-dontpanic` dentro do boilerplate e
+> trocava só `package.json:name` e `container_name`. Este pacote o **sucede** no mesmo
+> nome, em `1.0.0`, para que quem já conhece o comando não precise aprender outro.
+>
+> Consequência operacional: o `publish-create-dontpanic.yml` do boilerplate tem de ser
+> desativado, ou os dois repositórios publicam o mesmo nome e o último a rodar ganha. Ver
 > [ADR 0005](docs/decisions/0005-relacao-com-o-create-dontpanic-existente.md).
 
 Nenhum servidor gera código. O site é estático e a receita cabe na própria URL, o que quer

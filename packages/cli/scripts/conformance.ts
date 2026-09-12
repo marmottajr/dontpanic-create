@@ -322,7 +322,7 @@ async function main(): Promise<void> {
   }
 
   if (!(await pathExists(join(CLI_ROOT, 'dist/index.js')))) {
-    console.error('dist/index.js não existe. Rode `pnpm --filter @dontpanic/create build` antes.');
+    console.error('dist/index.js não existe. Rode `pnpm --filter create-dontpanic build` antes.');
     process.exit(2);
   }
   if (!(await pathExists(join(CLI_ROOT, 'template')))) {

@@ -2,7 +2,7 @@
  * Inicialização do repositório do projeto gerado.
  *
  * O ponto sensível: o gerador pode estar rodando **dentro** de um repositório existente
- * (alguém que digitou `npx @dontpanic/create servico` dentro do próprio monorepo). Um
+ * (alguém que digitou `npx create-dontpanic servico` dentro do próprio monorepo). Um
  * `git init` ali cria um repo aninhado, que o git de fora vê como um diretório comum e
  * comita junto, arrastando o projeto inteiro para o histórico errado. Detectar isso e
  * perguntar é obrigação, não cortesia.

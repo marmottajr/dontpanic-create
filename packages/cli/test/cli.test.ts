@@ -192,7 +192,7 @@ describe('cli — resumo', () => {
     assert.match(result.all, /acme_corp_app/);
     assert.match(result.all, /@acme-corp\/shared/);
     assert.match(result.all, /admin@acme-corp\.dev/);
-    assert.match(result.all, /npx @dontpanic\/create/);
+    assert.match(result.all, /npx create-dontpanic/);
   });
 
   it('avisa sobre a fila em memória e sobre o seed ser a única porta no preset mínimo', async () => {

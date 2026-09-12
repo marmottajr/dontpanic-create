@@ -92,7 +92,7 @@ export async function cli(argv: string[]): Promise<number> {
   if (parsed.errors.length > 0) {
     errorBlock(parsed.errors);
     blank();
-    logger.info(`Rode ${c.bold('npx @dontpanic/create --help')} para ver as flags.`);
+    logger.info(`Rode ${c.bold('npx create-dontpanic --help')} para ver as flags.`);
     return EXIT_FAILURE;
   }
 
@@ -104,7 +104,7 @@ export async function cli(argv: string[]): Promise<number> {
     // timeout — que é a pior forma de falhar, porque não diz nada. Recusar nomeia a saída.
     if (process.stdin.isTTY !== true) {
       errorBlock([
-        'Sem terminal interativo não há como perguntar nada. Passe o nome do projeto e as flags: npx @dontpanic/create "Minha Empresa" --yes.',
+        'Sem terminal interativo não há como perguntar nada. Passe o nome do projeto e as flags: npx create-dontpanic "Minha Empresa" --yes.',
       ]);
       return EXIT_FAILURE;
     }
@@ -328,8 +328,8 @@ function printHelp(version: string): void {
   banner(version);
 
   heading('Uso');
-  command('npx @dontpanic/create <nome-ou-caminho> [flags]');
-  command('npx @dontpanic/create', 'sem argumentos: modo interativo');
+  command('npx create-dontpanic <nome-ou-caminho> [flags]');
+  command('npx create-dontpanic', 'sem argumentos: modo interativo');
   blank();
 
   heading('Presets');
@@ -384,10 +384,10 @@ function printHelp(version: string): void {
   blank();
 
   heading('Exemplos');
-  command('npx @dontpanic/create "Acme Corp"');
-  command('npx @dontpanic/create acme --preset=complete --oauth=google,github');
-  command('npx @dontpanic/create acme --no-2fa --no-plans --i18n=pt');
-  command('npx @dontpanic/create ./apps/loja --preset=internal --no-docker --yes');
+  command('npx create-dontpanic "Acme Corp"');
+  command('npx create-dontpanic acme --preset=complete --oauth=google,github');
+  command('npx create-dontpanic acme --no-2fa --no-plans --i18n=pt');
+  command('npx create-dontpanic ./apps/loja --preset=internal --no-docker --yes');
   blank();
 
   process.stdout.write(

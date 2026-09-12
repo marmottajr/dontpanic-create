@@ -4,7 +4,7 @@
 
 ## Contexto
 
-13 features booleanas são 8192 combinações. O CI não testa 8192 projetos.
+14 features booleanas são 16.384 combinações. O CI não testa 16.384 projetos.
 
 ## Decisão
 

@@ -44,16 +44,32 @@ abandonado. Três consequências práticas:
    de conformidade conta 879 ocorrências em vez de 506, e renomear ali é inútil porque o
    diretório é regenerado.
 
-## Ponto aberto para o Marcio
+## Decidido: `create-dontpanic@1.0.0`, a partir deste repositório
 
-O gerador vive neste repo separado (pedido dele), enquanto o antecessor vive dentro do
-boilerplate. As duas opções de publicação:
+O pacote deste repo **assume o nome** `create-dontpanic`, em `1.0.0`. Quem já conhece
+`npx create-dontpanic` continua com o mesmo comando e passa a receber o gerador de
+verdade; quem nunca usou não precisa aprender um nome de transição.
 
-- **`create-dontpanic@1.0.0` a partir deste repo** — um só nome, um só caminho, `npx
-  create-dontpanic` continua valendo. Exige tirar o pacote antigo do boilerplate para os dois
-  não disputarem a mesma versão.
-- **`@dontpanic/create` como nome novo** — coexistência pacífica, ao custo de dois pacotes
-  fazendo a mesma coisa no npm e de um comando mais longo.
+`1.0.0` e não `0.4.0` porque a mudança de comportamento é grande: o antecessor trocava o
+nome da pasta e do container, e este renomeia o escopo pnpm, a role do Postgres, o banco,
+o bucket e o branding, remove features e monta a baseline de migration. Manter `0.x`
+sugeriria continuidade onde há substituição.
 
-A recomendação é a primeira. Enquanto não houver decisão, o `package.json` deste pacote
-declara `@dontpanic/create`, que é trocável numa linha.
+### O que isso exige do boilerplate
+
+**Duas coisas, e ambas do lado de `marmottajr/dontpanic`:**
+
+1. **Desativar o `.github/workflows/publish-create-dontpanic.yml`.** Ele dispara em tag
+   `v*` e publica `create-dontpanic` a partir de `packages/create-dontpanic`. Com os dois
+   repositórios ativos, o mesmo nome tem dois publicadores e o último a rodar ganha — e o
+   boilerplate ganha por acidente, porque a tag `v*` dele é empurrada com mais frequência.
+   Desativar (apagar, ou trocar o trigger por `workflow_dispatch`) é o que impede uma
+   release do boilerplate de sobrescrever o gerador com o instalador antigo.
+
+2. **Aposentar `packages/create-dontpanic`.** Pode sair num PR próprio, depois de o
+   sucessor estar publicado. Enquanto estiver lá, o `sync-template` já o exclui do
+   template e o CI de conformidade já o ignora nos greps — então ele não atrapalha, só
+   confunde quem lê o repositório.
+
+O segredo `NPM_TOKEN` precisa existir em `marmottajr/dontpanic-create` com permissão de
+publish para `create-dontpanic`.

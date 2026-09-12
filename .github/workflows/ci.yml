@@ -16,6 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Ler a tag do boilerplate declarada no template.json
+        id: template
+        run: |
+          REF="$(node -p "require('./packages/cli/template.json').tag")"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout do boilerplate, na tag declarada
+        uses: actions/checkout@v7
+        with:
+          repository: marmottajr/dontpanic
+          ref: ${{ steps.template.outputs.ref }}
+          path: .boilerplate
+          fetch-depth: 0
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v7
@@ -27,6 +41,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Materializar o template
+        # Sem isto, seis testes que GERAM um projeto de verdade não têm o que copiar — e
+        # o `pnpm test` fica vermelho por falta de setup, não por defeito. O template é
+        # gitignorado de propósito: a fonte da verdade é a tag do boilerplate, não uma
+        # cópia versionada aqui que envelheceria em silêncio.
+        run: pnpm sync-template --from="$GITHUB_WORKSPACE/.boilerplate"
 
       - run: pnpm typecheck
 

@@ -1,12 +1,28 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const BIN = fileURLToPath(new URL('../src/index.ts', import.meta.url));
+
+/**
+ * O template existe?
+ *
+ * Os casos que geram de verdade precisam dele, e ele é gitignorado de propósito — a fonte
+ * da verdade é a tag do boilerplate, não uma cópia versionada aqui. Num clone novo, sem
+ * `pnpm sync-template`, esses casos são PULADOS em vez de falharem: um vermelho por falta
+ * de setup ensina a pessoa a ignorar o vermelho.
+ */
+const TEMPLATE_READY = existsSync(
+  fileURLToPath(new URL('../template/package.json', import.meta.url)),
+);
+
+const skipSemTemplate: { skip?: string } = TEMPLATE_READY
+  ? {}
+  : { skip: 'template ausente — rode `pnpm sync-template`' };
 
 interface CliRun {
   code: number;
@@ -112,7 +128,7 @@ describe('cli — erros de entrada', () => {
 });
 
 describe('cli — destino', () => {
-  it('gera (dry-run) num caminho novo e imprime os próximos passos', async () => {
+  it('gera (dry-run) num caminho novo e imprime os próximos passos', skipSemTemplate, async () => {
     const base = tempDir();
     const result = await runCli([join(base, 'acme'), '--yes', '--dry-run']);
     assert.equal(result.code, 0);
@@ -132,7 +148,7 @@ describe('cli — destino', () => {
     assert.match(result.all, /--force/);
   });
 
-  it('aceita diretório não vazio com --force', async () => {
+  it('aceita diretório não vazio com --force', skipSemTemplate, async () => {
     const base = tempDir();
     const target = join(base, 'acme');
     mkdirSync(target);
@@ -142,7 +158,7 @@ describe('cli — destino', () => {
     assert.equal(result.code, 0);
   });
 
-  it('ignora .DS_Store ao decidir se o diretório está vazio', async () => {
+  it('ignora .DS_Store ao decidir se o diretório está vazio', skipSemTemplate, async () => {
     // Qualquer pasta que alguém abriu no Finder tem um. Recusar por causa dele é recusar
     // por nada, e o usuário não tem como adivinhar o motivo.
     const base = tempDir();
@@ -164,7 +180,7 @@ describe('cli — destino', () => {
 });
 
 describe('cli — repositório git envolvente', () => {
-  it('avisa e exige confirmação quando o destino cai dentro de um repo', async (t) => {
+  it('avisa e exige confirmação quando o destino cai dentro de um repo', skipSemTemplate, async (t) => {
     if (!hasGit) {
       t.skip('git não disponível');
       return;
@@ -184,7 +200,7 @@ describe('cli — repositório git envolvente', () => {
 });
 
 describe('cli — resumo', () => {
-  it('mostra as formas derivadas do nome e a linha que reproduz a receita', async () => {
+  it('mostra as formas derivadas do nome e a linha que reproduz a receita', skipSemTemplate, async () => {
     const base = tempDir();
     const result = await runCli([join(base, 'acme-corp'), '--name=Acme Corp', '--yes', '--dry-run']);
     assert.equal(result.code, 0);
@@ -195,7 +211,7 @@ describe('cli — resumo', () => {
     assert.match(result.all, /npx create-dontpanic/);
   });
 
-  it('avisa sobre a fila em memória e sobre o seed ser a única porta no preset mínimo', async () => {
+  it('avisa sobre a fila em memória e sobre o seed ser a única porta no preset mínimo', skipSemTemplate, async () => {
     const base = tempDir();
     const result = await runCli([join(base, 'acme'), '--preset=minimal', '--yes', '--dry-run']);
     assert.equal(result.code, 0);

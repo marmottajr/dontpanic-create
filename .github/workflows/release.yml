@@ -92,7 +92,7 @@ jobs:
 
       - name: Materializar o template
         if: steps.check.outputs.skip != 'true'
-        run: pnpm sync-template --from=.boilerplate --tag=${{ steps.template.outputs.ref }}
+        run: pnpm sync-template --from="$GITHUB_WORKSPACE/.boilerplate" --tag=${{ steps.template.outputs.ref }}
 
       - name: O template tem de estar dentro do pacote
         if: steps.check.outputs.skip != 'true'

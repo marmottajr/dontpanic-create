@@ -102,7 +102,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Materializar o template
-        run: pnpm sync-template --from=.boilerplate
+        # Caminho ABSOLUTO: `pnpm --filter` roda o script com cwd em `packages/cli`, e um
+        # `--from=.boilerplate` relativo resolveria para `packages/cli/.boilerplate`, que
+        # não existe. O erro é claro ("repo de origem não encontrado") mas o motivo não.
+        run: pnpm sync-template --from="$GITHUB_WORKSPACE/.boilerplate"
 
       - run: pnpm --filter create-dontpanic build
 

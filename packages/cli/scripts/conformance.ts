@@ -269,7 +269,17 @@ async function runCase(c: ConformanceCase, opts: RunOptions): Promise<Violation[
         // Playwright DELE que decide qual build do Chromium serve — instalar outra
         // versão baixa 150 MB e falha igual, dizendo que o executável não existe.
         log('baixando o navegador do Playwright...');
-        await run('pnpm', ['exec', 'playwright', 'install', 'chromium'], target, c, violations, 600_000);
+        // Em `apps/web`, não na raiz: o Playwright é dependência DAQUELE workspace, e o
+        // `pnpm exec` na raiz responde "Command playwright not found" — uma mensagem que
+        // parece ausência de instalação e é só diretório errado.
+        await run(
+          'pnpm',
+          ['exec', 'playwright', 'install', 'chromium'],
+          join(target, 'apps/web'),
+          c,
+          violations,
+          600_000,
+        );
 
         log('test:e2e...');
         await run('pnpm', ['test:e2e'], target, c, violations, 1_800_000);
@@ -399,11 +409,27 @@ function errorText(err: unknown): string {
     const partes = [e.stdout, e.stderr].filter((t): t is string => Boolean(t?.trim()));
     const text = partes.length > 0 ? partes.join('\n') : (e.message ?? JSON.stringify(err));
 
-    // As linhas que interessam são as que mencionam erro, mais o fim da saída.
     const linhas = text.split('\n');
-    const comErro = linhas.filter((l) => /error|ERR_|✖|✗|failed|Cannot find|TS\d{4}/i.test(l));
-    const cauda = linhas.slice(-15);
-    const escolhidas = [...new Set([...comErro.slice(0, 30), ...cauda])];
+
+    // O nome do caso que falhou vem PRIMEIRO, antes de qualquer outra coisa.
+    //
+    // O filtro anterior priorizava linhas contendo "error", e num projeto que testa
+    // caminhos de falha isso enche o relatório de ruído esperado ("audit table is on
+    // fire" é uma suíte simulando queda da auditoria) enquanto engole a única linha que
+    // importa: qual teste quebrou. "1 failed, 776 passed" sem o nome é indepurável.
+    const nomesDeFalha = linhas.filter((l) => /^\s*(✕|✗|●|FAIL\b)/.test(l));
+    const resumo = linhas.filter((l) => /^(Tests|Test Suites|Snapshots):/.test(l.trim()));
+    const compilacao = linhas.filter((l) => /TS\d{4}|Cannot find module|ERR_[A-Z_]+/.test(l));
+    const cauda = linhas.slice(-12);
+
+    const escolhidas = [
+      ...new Set([
+        ...nomesDeFalha.slice(0, 25),
+        ...resumo,
+        ...compilacao.slice(0, 15),
+        ...cauda,
+      ]),
+    ];
     return escolhidas.join('\n');
   }
   return String(err);

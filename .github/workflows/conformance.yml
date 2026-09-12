@@ -106,6 +106,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # O binário do Playwright vive em ~/.cache/ms-playwright, fora do projeto gerado —
+      # então o cache atravessa os casos da matriz, e só o primeiro de cada versão paga
+      # o download. A chave inclui o lockfile porque é ele que fixa a versão do
+      # Playwright que o projeto gerado vai exigir.
+      - name: Cache do navegador do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: playwright-${{ runner.os }}-
+
       - name: Materializar o template
         # Caminho ABSOLUTO: `pnpm --filter` roda o script com cwd em `packages/cli`, e um
         # `--from=.boilerplate` relativo resolveria para `packages/cli/.boilerplate`, que

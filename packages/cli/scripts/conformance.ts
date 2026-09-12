@@ -261,6 +261,16 @@ async function runCase(c: ConformanceCase, opts: RunOptions): Promise<Violation[
       if (erroDeBanco !== undefined) {
         violations.push({ case: c.id, kind: 'comando-falhou', detail: erroDeBanco });
       } else {
+        // O `test:e2e` do projeto gerado tem duas metades: a da API (Jest contra o
+        // Postgres, que é o que prova o RLS) e a do web (Playwright contra um navegador
+        // de verdade). A segunda precisa do binário, e ele NÃO vem com o `pnpm install`.
+        //
+        // O install roda a partir do projeto gerado, não do runner, porque é a versão do
+        // Playwright DELE que decide qual build do Chromium serve — instalar outra
+        // versão baixa 150 MB e falha igual, dizendo que o executável não existe.
+        log('baixando o navegador do Playwright...');
+        await run('pnpm', ['exec', 'playwright', 'install', 'chromium'], target, c, violations, 600_000);
+
         log('test:e2e...');
         await run('pnpm', ['test:e2e'], target, c, violations, 1_800_000);
       }

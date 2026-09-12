@@ -256,8 +256,14 @@ async function runCase(c: ConformanceCase, opts: RunOptions): Promise<Violation[
     await run('pnpm', ['test'], target, c, violations, 900_000);
 
     if (opts.e2e && c.e2e) {
-      log('test:e2e...');
-      await run('pnpm', ['test:e2e'], target, c, violations, 1_800_000);
+      log('preparando o Postgres para o e2e...');
+      const erroDeBanco = await prepararBanco(target);
+      if (erroDeBanco !== undefined) {
+        violations.push({ case: c.id, kind: 'comando-falhou', detail: erroDeBanco });
+      } else {
+        log('test:e2e...');
+        await run('pnpm', ['test:e2e'], target, c, violations, 1_800_000);
+      }
     }
 
     return violations;
@@ -290,6 +296,83 @@ async function run(
       kind: 'comando-falhou',
       detail: `\`${cmd} ${args.join(' ')}\` falhou: ${errorText(err)}`,
     });
+  }
+}
+
+/**
+ * Cria, no Postgres do CI, o dono que o projeto gerado espera encontrar.
+ *
+ * Em desenvolvimento o `docker compose` do próprio projeto sobe um Postgres cujo
+ * superusuário já se chama como o projeto (`POSTGRES_USER: acme_corp`), e é esse nome
+ * que o `.env` gerado põe em `DATABASE_ADMIN_URL`. O Postgres do workflow, ao contrário,
+ * vem com `postgres` e nada mais — então o e2e falhava no `global-setup`, que precisa
+ * de uma conexão capaz de `CREATE DATABASE`.
+ *
+ * O consertável aqui é o AMBIENTE, não o projeto: reescrever o `.env` gerado para
+ * apontar para o `postgres` do runner faria o portão validar um projeto diferente do
+ * que o usuário recebe. Então criamos a role que o `.env` já nomeia, com a senha que ele
+ * já declara, e o projeto roda exatamente como rodaria na máquina de alguém.
+ *
+ * Devolve `undefined` quando deu certo, ou a mensagem de erro.
+ */
+async function prepararBanco(dir: string): Promise<string | undefined> {
+  const adminUrl = process.env['CONFORMANCE_PG_ADMIN_URL'];
+  if (adminUrl === undefined) {
+    return 'CONFORMANCE_PG_ADMIN_URL não está definida — sem ela não há como criar o dono do banco.';
+  }
+
+  let envFile: string;
+  try {
+    envFile = await readFile(join(dir, '.env'), 'utf8');
+  } catch {
+    return '.env do projeto gerado não encontrado.';
+  }
+
+  const admin = /^DATABASE_ADMIN_URL=(.+)$/m.exec(envFile)?.[1]?.trim();
+  if (admin === undefined) return 'DATABASE_ADMIN_URL ausente do .env gerado.';
+
+  let dono: URL;
+  try {
+    dono = new URL(admin);
+  } catch {
+    return `DATABASE_ADMIN_URL não é URL válida: ${admin}`;
+  }
+
+  const usuario = decodeURIComponent(dono.username);
+  const senha = decodeURIComponent(dono.password);
+  const banco = dono.pathname.replace(/^\//, '').split('?')[0] ?? '';
+
+  // O `pg` vem instalado no projeto gerado (é a dependência do adapter do Prisma), então
+  // roda-se o SQL de lá em vez de exigir `psql` no runner.
+  const script = `
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: process.env.ADMIN_URL });
+    (async () => {
+      await c.connect();
+      const u = process.env.DONO, s = process.env.SENHA, b = process.env.BANCO;
+      const jaTem = await c.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [u]);
+      if (jaTem.rowCount === 0) {
+        // CREATEDB porque o global-setup cria o banco de e2e; CREATEROLE porque a
+        // migration da role restrita roda com esta conexão.
+        await c.query(\`CREATE ROLE "\${u}" LOGIN CREATEDB CREATEROLE PASSWORD '\${s}'\`);
+      }
+      const temBanco = await c.query('SELECT 1 FROM pg_database WHERE datname = $1', [b]);
+      if (temBanco.rowCount === 0) {
+        await c.query(\`CREATE DATABASE "\${b}" OWNER "\${u}"\`);
+      }
+      await c.end();
+    })().catch((e) => { console.error(e.message); process.exit(1); });
+  `;
+
+  try {
+    await exec('node', ['-e', script], {
+      cwd: join(dir, 'apps/api'),
+      timeout: 120_000,
+      env: { ...process.env, ADMIN_URL: adminUrl, DONO: usuario, SENHA: senha, BANCO: banco },
+    });
+    return undefined;
+  } catch (err) {
+    return `não consegui preparar o Postgres: ${errorText(err)}`;
   }
 }
 

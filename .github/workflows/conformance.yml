@@ -62,7 +62,11 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
-        ports: ['5432:5432']
+        # 4202, não 5432: é a porta que o `.env` do projeto gerado nomeia, porque é a do
+        # `docker compose` dele (o boilerplate inteiro vive no range 42xx). Publicar em
+        # 5432 obrigaria o portão a reescrever o `.env` do gerado — e aí ele validaria um
+        # projeto diferente do que o usuário recebe.
+        ports: ['4202:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -71,7 +75,8 @@ jobs:
 
       redis:
         image: redis:8-alpine
-        ports: ['6379:6379']
+        # Mesma razão do Postgres: 4203 é a porta que o projeto gerado procura.
+        ports: ['4203:6379']
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -118,8 +123,8 @@ jobs:
           # O projeto gerado cria as suas próprias roles a partir desta conexão de
           # superusuário; a role restrita que a aplicação usa nasce no setup dele, e é
           # sob ela que o e2e roda. É isso que faz o teste de isolamento provar algo.
-          CONFORMANCE_PG_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
-          CONFORMANCE_REDIS_URL: redis://localhost:6379
+          CONFORMANCE_PG_ADMIN_URL: postgresql://postgres:postgres@localhost:4202/postgres
+          CONFORMANCE_REDIS_URL: redis://localhost:4203
 
       - name: Guardar o relatório e o projeto que falhou
         if: failure()

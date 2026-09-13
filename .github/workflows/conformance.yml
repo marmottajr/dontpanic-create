@@ -86,14 +86,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # A tag vem de packages/cli/template.json, lida a cada execução — como no ci.yml
+      # e no release.yml. Fixá-la numa tag é o que torna a execução reprodutível (um
+      # `main` móvel faria o CI falhar por mudança alheia); fixá-la AQUI, num literal,
+      # fazia o workflow ignorar o template.json: subir o template para v0.3.1 derrubou
+      # os oito casos, porque este checkout continuou na v0.3.0 e o sync-template
+      # recusou, com razão, copiar uma versão declarando outra.
+      - name: Ler a tag do boilerplate declarada no template.json
+        id: template
+        run: |
+          REF="$(node -p "require('./packages/cli/template.json').tag")"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
       - name: Checkout do boilerplate, na tag declarada
         uses: actions/checkout@v7
         with:
           repository: marmottajr/dontpanic
-          # A tag vem de packages/cli/template.json. Fixar a referência aqui é o que
-          # torna a execução reprodutível: um `main` móvel faria o CI falhar por
-          # mudança alheia sem nenhum commit deste repo.
-          ref: ${{ vars.BOILERPLATE_REF || 'v0.3.0' }}
+          ref: ${{ steps.template.outputs.ref }}
           path: .boilerplate
           fetch-depth: 0
 

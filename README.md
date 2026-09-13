@@ -101,16 +101,23 @@ pnpm --filter @dontpanic/site deploy     # wrangler deploy
 ```
 
 No CI isso acontece sozinho: `.github/workflows/deploy-site.yml` dispara quando `apps/web`
-muda, roda typecheck/lint/test, builda e publica. Ele exige dois segredos no repositório —
-`CLOUDFLARE_API_TOKEN` (com permissão *Workers Scripts: Edit*) e `CLOUDFLARE_ACCOUNT_ID`.
+muda, roda typecheck/lint/test, builda e publica. Ele usa dois segredos do repositório —
+`CLOUDFLARE_API_TOKEN` (permissão *Workers Scripts: Edit*) e `CLOUDFLARE_ACCOUNT_ID`.
 
 Antes do deploy, o workflow confere que **as sete raízes de idioma existem no `out/`**.
 `output: 'export'` falha em silêncio quando alguém introduz uma rota dinâmica ou uma server
 action: o build passa e o `out/` sai incompleto. Sem essa checagem, o site vai ao ar com
 páginas faltando e sem nenhum erro no caminho.
 
-O domínio (`getdontpanic.com`) é ligado como Custom Domain pelo painel, ou descomentando
-`routes` no `wrangler.jsonc` depois que a zona estiver ativa.
+**O domínio fica fora do ciclo de deploy, de propósito.** `getdontpanic.com` e `www` já
+estão ligados ao Worker como Custom Domain e sobrevivem a qualquer publicação. Declará-los
+no `wrangler.jsonc` faria o wrangler reconciliar rotas a cada deploy, e isso exige permissão
+**na zona** (`Zone › Workers Routes › Edit`) — escopo maior que o do token de CI. O
+resultado seria o pior formato de falha: os assets sobem, o site atualiza, e o workflow
+termina vermelho reclamando de uma rota que já estava certa.
+
+Para mudar o domínio: painel (Workers › `dontpanic-site` › Domains & Routes) ou
+`PUT /accounts/{id}/workers/domains`.
 
 ## Como o site escolhe o idioma
 
@@ -153,7 +160,6 @@ Um `npx` resolve, numa passada, o que separava "clonei o boilerplate" de "tenho 
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | o desenho, o fluxo de geração e por que a ordem das etapas não é arbitrária |
 | [`docs/decisions/`](docs/decisions/) | as decisões tomadas e o que foi rejeitado junto |
 | [`docs/maps/`](docs/maps/) | a auditoria do boilerplate: onde está cada ocorrência do nome, cada feature e cada variável de ambiente |
-| [`docs/achados-no-boilerplate.md`](docs/achados-no-boilerplate.md) | defeitos encontrados no boilerplate durante a auditoria, ainda não corrigidos |
 
 Os mapas foram produzidos por auditoria do repo e são a especificação do gerador. Mudou o
 boilerplate? O mapa correspondente envelheceu, e o CI de conformidade é quem avisa.

@@ -39,6 +39,6 @@ describe('detecção de idioma', () => {
   });
 
   it('monta URLs absolutas com barra final', () => {
-    expect(localeUrl('pt-br')).toBe('https://dontpanic.dev/pt-br/');
+    expect(localeUrl('pt-br')).toBe('https://getdontpanic.com/pt-br/');
   });
 });

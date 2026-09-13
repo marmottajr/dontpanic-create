@@ -39,9 +39,9 @@ Basta que ele tente **um** comando que não roda, ou confira **um** número que 
 que todos os outros percam o valor. Um dado inventado não custa aquele dado: custa a
 credibilidade do conjunto, que é o único ativo que a página tem.
 
-É a mesma disciplina que o boilerplate aplica a si mesmo — `docs/achados-no-boilerplate.md`
-registra sete garantias que o `CLAUDE.md` afirmava e o código não cumpria. Seria incoerente
-cobrar isso do produto e não da página que o vende.
+É a mesma disciplina que se cobra do produto: documentação que afirma uma garantia e código
+que não a cumpre são um defeito, não um detalhe. Seria incoerente exigir isso do boilerplate
+e não da página que o vende.
 
 ## Consequência prática
 

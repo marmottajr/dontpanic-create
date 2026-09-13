@@ -60,8 +60,13 @@ export function isLocale(value: string): value is Locale {
  * Precisa ser absoluta: `hreflang` relativo é ignorado por buscador, e sem
  * `hreflang` recíproco sete páginas de conteúdo equivalente competem entre si na
  * indexação em vez de se apontarem. Este é o único lugar onde o domínio aparece.
+ *
+ * **Não é `dontpanic.dev`.** Aquele domínio pertence a outra pessoa — está parqueado
+ * numa página de venda — e chegou aqui como suposição de que o nome do produto seria o
+ * domínio. Apontar `canonical` e `hreflang` para lá mandaria o buscador indexar, e o
+ * leitor visitar, um anúncio de domínio à venda.
  */
-export const SITE_URL = 'https://dontpanic.dev';
+export const SITE_URL = 'https://getdontpanic.com';
 
 export function localePath(locale: Locale): string {
   return `/${locale}/`;

@@ -21,7 +21,7 @@ O que ele **não** faz — e o teste dele prova que é intencional, não esqueci
 - não renomeia a role do Postgres `dontpanic_app` (29 ocorrências, 13 num SQL de migration)
 - não toca `.env`, nem os bancos, nem o bucket, nem o branding
 - não tem seleção de features
-- gera um projeto cujo CI quebra no primeiro push (ver `docs/achados-no-boilerplate.md`, item 1)
+- gera um projeto cujo CI quebra no primeiro push (template sem lockfile, `--frozen-lockfile` no workflow)
 
 Ou seja: é um scaffolder de nome de pasta, não um gerador de projeto.
 

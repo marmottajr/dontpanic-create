@@ -32,16 +32,21 @@
     "enabled": true
   },
 
-  // A zona `getdontpanic.com` está ativa na conta (verificado pela API), então as rotas
-  // entram aqui: o `wrangler deploy` liga o Custom Domain e emite o certificado sozinho,
-  // sem ninguém precisar clicar no painel. Fica versionado junto com o resto — quem lê o
-  // repositório descobre onde o site mora sem abrir o Cloudflare.
+  // **Sem `routes` aqui, e isso é deliberado.**
   //
-  // `www` também, porque um visitante que digita `www.` merece chegar em vez de ver erro
-  // de DNS. O redirecionamento de um para o outro é uma regra de redirect na zona, não
-  // trabalho do Worker.
-  "routes": [
-    { "pattern": "getdontpanic.com", "custom_domain": true },
-    { "pattern": "www.getdontpanic.com", "custom_domain": true }
-  ]
+  // `getdontpanic.com` e `www.getdontpanic.com` já estão ligados a este Worker como
+  // Custom Domain — foram criados uma vez, pela API, e sobrevivem a qualquer deploy.
+  //
+  // Declará-los neste arquivo faria o `wrangler deploy` tentar reconciliar as rotas a
+  // cada publicação, e isso exige permissão **na zona** (`Zone › Workers Routes › Edit`),
+  // que é um escopo diferente do `Workers Scripts: Edit` do token de CI. O resultado era
+  // uma falha com o pior formato possível: os assets subiam, o site atualizava, e o
+  // workflow terminava VERMELHO no passo seguinte — dizendo "Authentication error" sobre
+  // uma rota que já estava certa.
+  //
+  // Domínio é configuração de infraestrutura, muda uma vez por ano; asset muda a cada
+  // push. Separá-los mantém o token do CI com o mínimo de permissão que ele precisa.
+  //
+  // Para mudar o domínio: pelo painel (Workers › dontpanic-site › Domains & Routes), ou
+  // `PUT /accounts/{id}/workers/domains` com `{zone_id, hostname, service, environment}`.
 }

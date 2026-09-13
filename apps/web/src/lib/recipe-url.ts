@@ -83,6 +83,25 @@ export function defaultState(): RecipeUrlState {
 // Escrita
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * O que vai na barra de endereço — que não é o mesmo que vai num link compartilhado.
+ *
+ * Com a receita intocada, a barra fica **sem query**. Um `?preset=saas` escrito em toda
+ * visita não informa nada (é o que a página abriria de qualquer jeito) e custa caro fora
+ * daqui: o GA4 registra `page_location` com a query, então quase toda pageview de `/en/`
+ * vira `/en/?preset=saas`, e os relatórios de página se partem entre as duas formas da
+ * mesma URL. O `canonical` protege o buscador; não protege a análise.
+ *
+ * Isto não muda o que se compartilha: o link copiado continua carregando o preset
+ * explicitamente, porque quem o recebe pode ter outra receita salva no `localStorage`, e
+ * sem preset na URL a página reidrataria a dele em vez da de quem mandou.
+ */
+export function addressBarQuery(recipe: Recipe, preset: PresetId): string {
+  const query = serializeRecipe(recipe, preset);
+  const { recipe: pristine, preset: pristinePreset } = defaultState();
+  return query === serializeRecipe(pristine, pristinePreset) ? '' : query;
+}
+
 export function serializeRecipe(recipe: Recipe, preset: PresetId): string {
   const base = PRESETS[preset];
   const params = new URLSearchParams();

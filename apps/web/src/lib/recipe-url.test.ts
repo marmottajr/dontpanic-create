@@ -8,7 +8,42 @@ import {
   PRESET_IDS,
   type PresetId,
 } from './recipe-bridge';
-import { defaultState, parseRecipe, SAMPLE_PROJECT, serializeRecipe } from './recipe-url';
+import {
+  addressBarQuery,
+  defaultState,
+  parseRecipe,
+  SAMPLE_PROJECT,
+  serializeRecipe,
+} from './recipe-url';
+
+describe('query da barra de endereço', () => {
+  it('fica vazia com a receita intocada', () => {
+    const { recipe, preset } = defaultState();
+    expect(addressBarQuery(recipe, preset)).toBe('');
+  });
+
+  it('é a mesma do link compartilhado assim que algo muda', () => {
+    const { recipe, preset } = defaultState();
+    recipe.features.captcha = false;
+    expect(addressBarQuery(recipe, preset)).toBe(serializeRecipe(recipe, preset));
+    expect(addressBarQuery(recipe, preset)).not.toBe('');
+  });
+
+  it.each(PRESET_IDS.filter((id) => id !== DEFAULT_PRESET))(
+    'mantém o preset %s na URL mesmo intocado',
+    (preset: PresetId) => {
+      const recipe = presetRecipe(preset, { ...SAMPLE_PROJECT });
+      expect(addressBarQuery(recipe, preset)).toBe(`preset=${preset}`);
+    },
+  );
+
+  it('volta a ficar vazia quando a receita retorna ao padrão', () => {
+    const { recipe, preset } = defaultState();
+    recipe.features.captcha = false;
+    recipe.features.captcha = PRESETS[preset].features.captcha;
+    expect(addressBarQuery(recipe, preset)).toBe('');
+  });
+});
 
 describe('serialização na URL', () => {
   it('não escreve nada além do preset quando nada foi mudado', () => {

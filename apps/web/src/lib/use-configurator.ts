@@ -27,7 +27,7 @@ import {
   type ValidationIssue,
 } from './recipe-bridge';
 import { readStoredQuery, writeStoredQuery } from './recipe-store';
-import { defaultState, parseRecipe, serializeRecipe } from './recipe-url';
+import { addressBarQuery, defaultState, parseRecipe, serializeRecipe } from './recipe-url';
 
 export interface CommandChip {
   flag: string;
@@ -106,13 +106,12 @@ export function useConfigurator(): ConfiguratorState {
    */
   useEffect(() => {
     if (!hydrated) return;
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}?${shareQuery}${window.location.hash}`,
-    );
+    const query = addressBarQuery(state.recipe, state.preset);
+    const target = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (target !== current) window.history.replaceState(null, '', target);
     writeStoredQuery(shareQuery);
-  }, [shareQuery, hydrated]);
+  }, [state, shareQuery, hydrated]);
 
   const update = useCallback((mutate: Draft) => {
     setState((current) => {

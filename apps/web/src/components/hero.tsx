@@ -80,16 +80,24 @@ export function Hero({ messages }: { messages: Messages }): React.ReactElement {
               </button>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
-              <button
-                type="button"
-                onClick={() => ctx.wizard.openWizard(null)}
-                className="text-small font-semibold text-amber underline-offset-4 hover:underline"
-              >
-                {messages.wizard.openHero} →
-              </button>
-              <a href="#proof" className="text-small text-dim underline-offset-4 hover:underline">
-                {hero.ctaProof}
+            {/*
+             * Duas notas, e cada uma faz um trabalho diferente.
+             *
+             * A de cima convida: diz o que esperar do assistente antes de alguém
+             * clicar. A que fica sob o bloco de comando informa um pré-requisito real
+             * — Node 24 e pnpm —, e é o tipo de coisa que, faltando, vira frustração
+             * no terminal dez segundos depois de copiar.
+             *
+             * Aqui havia também um "Montar o meu sistema →" ao lado do link da prova.
+             * Saiu: fazia exactamente o que o botão "Começar" ao lado já faz, a
+             * quarenta pixels de distância. O convite em texto agora mora no bloco
+             * entre "A prova" e "Como funciona", onde não compete com nada.
+             */}
+            <p className="mt-3 text-small text-dim">{hero.ctaNote}</p>
+
+            <div className="mt-5">
+              <a href="#proof" className="text-small text-amber underline-offset-4 hover:underline">
+                {hero.ctaProof} ↓
               </a>
             </div>
           </div>

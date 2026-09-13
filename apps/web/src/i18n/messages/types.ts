@@ -64,8 +64,30 @@ export interface WizardStep {
   eyebrow: string;
   /** A pergunta, em linguagem de gente. */
   question: string;
-  /** O que muda conforme a resposta. Sem jargão. */
+  /**
+   * O que muda conforme a resposta. Sem jargão — e, onde existir uma boa, começando
+   * pela **consequência** e não pelo mecanismo: "é a diferença entre roubaram a senha
+   * dela e roubaram a senha dela e não entraram" ensina o valor numa frase, enquanto
+   * "é o código de seis dígitos de um app autenticador" descreve a engrenagem antes de
+   * dizer para que ela serve. Onde não houver antítese natural, não force: uma
+   * inventada lê pior que a explicação direta.
+   */
   help: string;
+}
+
+/**
+ * Um passo que faz uma pergunta — os dez do meio; revisão e "pronto" não têm.
+ *
+ * `whatChanges` é o bloco técnico do fim da tela: é onde o passo devolve o que o resto
+ * dele evitou de propósito, e é o que faz a mesma tela servir a quem nunca ouviu falar
+ * de RLS e a quem quer saber exactamente o que vai para o repositório.
+ *
+ * **Toda afirmação aqui é medida no boilerplate**, não no mockup: nomes de cookie, de
+ * variável de ambiente, de função SQL e de índice. É a regra do ADR 0006 no ponto em
+ * que ela mais importa, porque este é o texto que um leitor cético vai conferir.
+ */
+export interface WizardQuestion extends WizardStep {
+  whatChanges: string;
 }
 
 /** Uma escolha, com o que ela implica. */
@@ -100,10 +122,26 @@ export interface Messages {
     title: string;
     lead: string;
     nameCta: string;
+    /** Convida: o que esperar do assistente. Fica sob os botões. */
+    ctaNote: string;
     commandLabel: string;
+    /** Informa um pré-requisito real, sob o bloco de comando. */
     commandNote: string;
     ctaProof: string;
     facts: Fact[];
+  };
+
+  /**
+   * A chamada entre "A prova" e "Como funciona".
+   *
+   * É o único convite a abrir o assistente fora do hero e do cabeçalho, e está no
+   * ponto em que a pessoa acabou de ler os cinco erros. A nota responde a objeção que
+   * todo mundo tem antes de clicar num botão de produto.
+   */
+  cta: {
+    title: string;
+    text: string;
+    note: string;
   };
 
   proof: {
@@ -201,27 +239,34 @@ export interface Messages {
     no: string;
     /** Na revisão: volta ao passo daquela linha. */
     edit: string;
+    /** Rótulo do bloco técnico: "O QUE MUDA NO SEU SISTEMA". */
+    whatChangesLabel: string;
     steps: {
-      name: WizardStep;
-      preset: WizardStep;
-      tenancy: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
-      entry: WizardStep & {
+      name: WizardQuestion;
+      preset: WizardQuestion;
+      tenancy: WizardQuestion & { choices: { yes: WizardChoice; no: WizardChoice } };
+      entry: WizardQuestion & {
         choices: { open: WizardChoice; invite: WizardChoice; seed: WizardChoice };
       };
-      social: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
-      twoFactor: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
-      languages: WizardStep & { choices: { one: WizardChoice; many: WizardChoice } };
-      plans: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
-      files: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
-      captcha: WizardStep & { choices: { yes: WizardChoice; no: WizardChoice } };
+      social: WizardQuestion & { choices: { yes: WizardChoice; no: WizardChoice } };
+      twoFactor: WizardQuestion & { choices: { yes: WizardChoice; no: WizardChoice } };
+      languages: WizardQuestion & { choices: { one: WizardChoice; many: WizardChoice } };
+      plans: WizardQuestion & { choices: { yes: WizardChoice; no: WizardChoice } };
+      files: WizardQuestion & { choices: { yes: WizardChoice; no: WizardChoice } };
+      captcha: WizardQuestion & { choices: { yes: WizardChoice; no: WizardChoice } };
       review: WizardStep;
       done: WizardStep;
     };
   };
 
   how: {
+    /**
+     * O título entrega a promessa em vez de anunciar a seção — e carrega `pnpm dev`
+     * entre acentos graves, então é renderizado com `RichText`, não como texto cru.
+     * O rótulo da seção reaproveita `nav.how`: é a mesma palavra, e duas chaves para
+     * o mesmo texto divergem na primeira revisão.
+     */
     title: string;
-    lead: string;
     steps: Step[];
     renameTitle: string;
     renameLead: string;

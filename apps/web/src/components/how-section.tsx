@@ -3,33 +3,40 @@ import { RichText } from './rich-text';
 import type { Messages } from '@/i18n/messages';
 
 /**
- * Aqui a numeração é legítima pelo motivo mais simples: os quatro passos SÃO uma
- * sequência temporal, e o número diz em que ponto dela a pessoa está.
+ * "Como funciona", em quatro colunas com régua fina no topo.
+ *
+ * A forma vem do desenho, e o motivo de ela ser melhor que os cartões que estavam aqui
+ * é coerência: o resto da página é grade de especificação anotada — réguas finas,
+ * rótulo em mono, sem moldura. Quatro cartões com borda eram a única ilha de outro
+ * idioma visual.
+ *
+ * O título entrega a promessa em vez de anunciar a seção, e passa por `RichText` porque
+ * carrega `pnpm dev` entre acentos graves: o quarto passo é literalmente o comando, e
+ * escrevê-lo em mono é o que faz o título ser verificável olhando a quarta coluna.
+ *
+ * A numeração é legítima: os quatro passos são uma sequência temporal, e o número diz
+ * em que ponto dela a pessoa está.
  */
 export function HowSection({ messages }: { messages: Messages }): React.ReactElement {
-  const { how } = messages;
+  const { how, nav } = messages;
 
   return (
-    <Section id="how" title={how.title} lead={how.lead}>
-      <ol className="grid gap-px bg-rule sm:grid-cols-2">
+    <Section id="how" eyebrow={nav.how} title={<RichText>{how.title}</RichText>}>
+      <ol className="grid gap-8 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-4">
         {how.steps.map((step, index) => (
-          <li key={step.title} className="bg-bg p-[26px]">
-            <div className="flex items-baseline gap-3">
-              <span className="label text-amber tabular-nums">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <h3 className="text-h3 font-semibold">
-                <RichText>{step.title}</RichText>
-              </h3>
-            </div>
-            <p className="mt-3 text-small text-dim">
+          <li key={step.title} className="border-t border-rule pt-4">
+            <p className="label text-faint tabular-nums">{String(index + 1).padStart(2, '0')}</p>
+            <h3 className="mt-2.5 font-semibold">
+              <RichText>{step.title}</RichText>
+            </h3>
+            <p className="mt-2 text-small text-dim">
               <RichText>{step.body}</RichText>
             </p>
           </li>
         ))}
       </ol>
 
-      <div className="mt-12 border-t border-rule pt-6">
+      <div className="mt-14 border-t border-rule pt-6">
         <h3 className="text-h3 font-semibold">{how.renameTitle}</h3>
         <p className="measure mt-3 text-small text-dim">
           <RichText>{how.renameLead}</RichText>

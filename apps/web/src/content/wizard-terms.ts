@@ -18,13 +18,22 @@ import type { WizardStepId } from '@/lib/configurator-context';
  *
  * O critério de escolha é **ser procurável no repositório**, não soar bem:
  *
- * - `slug` e `npmScope` são campos de `NameForms` em `packages/cli/src/naming.ts`.
- * - `public signup` e `invitations` são os ids de feature (`publicSignup`,
- *   `invitations`) e as flags `--public-signup` / `--invitations`. Em inglês, e não em
- *   "signup público · convites", justamente porque o termo tem que ser o mesmo nos sete
- *   idiomas — e o que está no código é o inglês.
- * - Os demais aparecem no boilerplate: OIDC em 5 arquivos, TOTP em 19, OAuth em 38,
- *   CAPTCHA em 30, `feature flag` e `object storage` no `CLAUDE.md`.
+ * **Procurável ONDE**, porque os termos não vêm todos do mesmo repositório:
+ *
+ * - No boilerplate (`marmottajr/dontpanic`), medido com `grep -ril` sobre os arquivos
+ *   rastreados: `RLS` em 91 arquivos, `CAPTCHA` em 66, `slug` em 54, `OAuth` em 47,
+ *   `TOTP` em 43, `invitations` em 34, `i18n` em 32, `OIDC` em 5, `feature flag` em 4,
+ *   `multi-tenancy` em 4, `object storage` em 2, `publicSignup` em 1.
+ * - No gerador, não no boilerplate: `preset` é `PRESETS` e a flag `--preset` em
+ *   `packages/cli/src/recipe.ts`; `npm scope` é o campo `npmScope` de `NameForms` em
+ *   `packages/cli/src/naming.ts`. Quem procurar por eles no repo do boilerplate não
+ *   acha — e está certo, porque ali eles não existem: são conceitos de quem gera, não
+ *   do que foi gerado.
+ *
+ * `public signup` e `invitations` ficam em inglês — e não em "signup público ·
+ * convites" — por duas razões que se somam: é o id de feature que está no código
+ * (`publicSignup`, `invitations`, `--public-signup`, `--invitations`), e o termo tem
+ * que ser o mesmo nos sete idiomas para servir de ponte.
  *
  * Revisão e "pronto" não têm termo: não são recursos, são momentos do assistente.
  */

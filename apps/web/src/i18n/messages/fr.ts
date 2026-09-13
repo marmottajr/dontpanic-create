@@ -25,12 +25,12 @@ export const fr: Messages = {
     mastheadLabel: 'Don’t Panic',
     title:
       'Les décisions de sécurité qu’une IA rate en silence sont déjà prises, documentées et testées.',
-    lead: 'DontPanic est un boilerplate SaaS full-stack — NestJS, Next.js, Prisma, Postgres avec un vrai Row Level Security. Chaque choix de sécurité est déjà fait, expliqué dans le `CLAUDE.md` que votre agent lit avant la première ligne, et couvert par un test qui échoue dès que quelqu’un le défait. Effet de bord : le contexte part dans votre produit au lieu de redécouvrir comment on fait la rotation des refresh tokens.',
+    lead: 'Choisissez ce dont votre système a besoin. Recevez une commande. Le code arrive avec le nom de votre projet partout — paquets, base de données, variables d’environnement — et les choix difficiles déjà faits comme il faut.',
     nameCta: 'Commencer',
+    ctaNote: 'Dix questions en langage courant. Vous pouvez en sauter n’importe laquelle.',
     commandLabel: 'Commande du preset par défaut',
-    commandNote:
-      'Nécessite Node 24 et pnpm. Pour choisir les parties, répondez à l’assistant — douze questions.',
-    ctaProof: 'Voir les erreurs évitées',
+    commandNote: 'Nécessite Node 24 et pnpm.',
+    ctaProof: 'Voir les cinq erreurs',
     facts: [
       {
         value: '78 533',
@@ -43,6 +43,12 @@ export const fr: Messages = {
       },
       { value: '2 min', label: 'du npx à `pnpm dev`, base migrée et admin créé par le seed' },
     ],
+  },
+
+  cta: {
+    title: 'Dix questions. Une commande à la fin.',
+    text: 'Une question par écran, en langage courant, avec ce que ça change dans le système écrit en dessous. Pas quatorze interrupteurs d’un coup.',
+    note: 'sans inscription · on peut revenir à chaque étape',
   },
 
   proof: {
@@ -183,7 +189,7 @@ export const fr: Messages = {
       },
       files: {
         label: 'Envoi de fichiers',
-        text: 'Avatar et pièces jointes par URL pré-signée, derrière le port de stockage : S3, MinIO, R2 ou disque local.',
+        text: 'Avatar et pièces jointes gardés hors de la base, derrière le port de stockage : S3, MinIO, R2 ou disque local, interchangeables par `STORAGE_DRIVER`.',
       },
       platform: {
         label: 'Panneau plateforme',
@@ -260,22 +266,29 @@ export const fr: Messages = {
     yes: 'Oui',
     no: 'Non',
     edit: 'Modifier',
+    whatChangesLabel: 'Ce qui change dans votre système',
     steps: {
       name: {
         eyebrow: 'Nom',
         question: 'Comment votre système va-t-il s’appeler ?',
         help: 'Ce peut être le nom du produit ou celui de l’entreprise. Tout le reste en découle : le dossier, le paquet, la base de données, et même l’utilisateur que Postgres crée. Les formes dérivées apparaissent ci-dessous pendant que vous tapez.',
+        whatChanges:
+          'Le nom entre à 531 endroits, en trois casses différentes : paquet, scope pnpm, nom de base, préfixe de variable d’environnement, bucket, et le SQL qui crée le rôle Postgres restreint. La CI prouve qu’il n’en reste aucun — elle génère avec un nom de test et exige zéro occurrence de l’ancien dans un `grep -ri`.',
       },
       preset: {
         eyebrow: 'Point de départ',
         question: 'Lequel ressemble le plus à ce que vous allez construire ?',
         help: 'Ceci ne fait que répondre aux questions suivantes à votre place. Rien n’est verrouillé : si une réponse ne convient pas, changez-la à son étape ou dans la revue finale.',
+        whatChanges:
+          'Le point de départ ne fait que remplir les réponses suivantes. La CI teste la matrice des quatre intégralement : elle génère un projet de chacun, installe, vérifie les types et lance unitaires et e2e. En dehors, la combinaison est autorisée et non testée — et le CLI le dit, en une ligne.',
       },
       tenancy: {
         eyebrow: 'Entreprises',
         question:
           'Votre système va-t-il servir plusieurs entreprises différentes, chacune ne voyant que ses propres données ?',
-        help: 'C’est la différence entre un produit que vous vendez à de nombreux clients et un système qui tourne pour une seule entreprise.',
+        help: 'C’est la différence entre « le client A a vu la donnée du client B » et « la base a refusé la ligne avant que l’application s’en aperçoive ».',
+        whatChanges:
+          "La séparation appartient à Postgres, pas à l’application : chaque requête déclare son scope avec `SET LOCAL` dans la transaction, et les policies de Row Level Security comparent à `current_setting('app.current_tenant_id', true)`. Sans scope, la comparaison n’est jamais vraie — le résultat revient vide, jamais de la mauvaise entreprise. Une table nouvelle avec `tenantId` se protège seule : `SELECT app.apply_tenant_rls();` à la fin de la migration.",
         choices: {
           yes: {
             label: 'Oui, plusieurs entreprises',
@@ -290,7 +303,9 @@ export const fr: Messages = {
       entry: {
         eyebrow: 'Accès',
         question: 'Comment les gens vont-ils entrer dans le système ?',
-        help: 'Qui peut créer un compte est la décision qui change le plus votre produit — et celle qui tourne le plus mal quand on la remet à plus tard.',
+        help: 'C’est la différence entre se réveiller avec mille comptes de test et devoir créer chaque personne à la main. Qui peut créer un compte est la décision qui change le plus votre produit — et celle qui tourne le plus mal quand on la remet à plus tard.',
+        whatChanges:
+          "L’invitation ne garde que le SHA-256 du jeton : une base fuitée ne donne aucun lien utilisable. Un index unique partiel (`WHERE status = 'PENDING'`) permet au plus une invitation vivante par e-mail et par entreprise, et ferme la course de deux admins invitant le même collègue au même instant. L’e-mail part après le commit — dans la transaction, un rollback livrerait un lien valide vers une entreprise qui n’existe pas.",
         choices: {
           open: {
             label: 'N’importe qui peut s’inscrire',
@@ -309,30 +324,34 @@ export const fr: Messages = {
       social: {
         eyebrow: 'Connexion sociale',
         question: 'Voulez-vous le bouton se connecter avec Google, Apple ou GitHub ?',
-        help: 'Cela enlève une étape à l’utilisateur, et enlève aussi le mot de passe oublié. En échange, chaque fournisseur demande une clé que vous créez chez lui.',
+        help: 'C’est la différence entre un mot de passe de plus à oublier et un bouton que votre utilisateur utilise déjà partout. En échange, chaque fournisseur demande une clé que vous créez chez lui.',
+        whatChanges:
+          'Le compte est reconnu par le `providerAccountId` immuable, avec `@@unique([provider, providerAccountId])` — jamais par l’e-mail, recyclé quand quelqu’un quitte l’entreprise. Une adresse que le fournisseur n’a pas marquée comme vérifiée ne rattache rien : le callback renvoie `unverified_email`. La liste `OAUTH_PROVIDERS` et celle du web doivent coïncider, sinon le bouton en trop renvoie un 404 ; le générateur écrit les deux côtés.',
         choices: {
           yes: {
-            label: 'Oui',
-            help: 'Le compte est reconnu par l’identifiant que donne le fournisseur, jamais par l’e-mail : les adresses professionnelles sont recyclées, et rapprocher par e-mail, c’est ainsi que quelqu’un hérite du compte d’une personne partie.',
+            label: 'Oui, je veux le bouton',
+            help: 'Google et GitHub activés, Apple disponible. Les clés se créent dans la console de chacun et se collent dans le `.env`.',
           },
           no: {
-            label: 'Non',
-            help: 'E-mail et mot de passe seulement, et le code des fournisseurs quitte le projet — moins à maintenir. Pour le récupérer, régénérez avec la connexion sociale activée.',
+            label: 'Non, e-mail et mot de passe',
+            help: 'Le code des fournisseurs quitte le projet — moins à maintenir. Pour le récupérer, régénérez avec la connexion sociale activée.',
           },
         },
       },
       twoFactor: {
         eyebrow: 'Second facteur',
         question: 'Les gens doivent-ils pouvoir exiger un code du téléphone pour se connecter ?',
-        help: 'C’est le code à six chiffres d’une application comme Google Authenticator. Qui l’active protège son compte même si le mot de passe fuit.',
+        help: 'C’est la différence entre « on lui a volé son mot de passe » et « on lui a volé son mot de passe et on n’est pas entré ». La personne enregistre une application d’authentification une fois, puis tape six chiffres quand le système le demande.',
+        whatChanges:
+          'Le second facteur vaut à toutes les portes d’entrée, connexion sociale comprise : le callback n’émet pas de session, il livre un ticket dans le cookie `dp_2fa_ticket` — cinq minutes, brûlé après quelques tentatives fausses — et la vraie session ne naît qu’après les six chiffres. Des codes de secours à usage unique viennent avec, et `TWO_FACTOR_REQUIRED=true` se met à exiger le facteur de tout le monde.',
         choices: {
           yes: {
-            label: 'Oui',
-            help: 'Chacun l’active sur son propre compte, avec des codes de secours en cas de perte du téléphone. La connexion sociale le respecte : avec le second facteur activé, passer par Google ne saute pas l’étape.',
+            label: 'Oui, je veux un second facteur',
+            help: 'Chacun l’active sur son propre compte, avec des codes de secours en cas de perte du téléphone. Pour l’exiger de tout le monde, le projet livre `TWO_FACTOR_REQUIRED`.',
           },
           no: {
-            label: 'Non',
-            help: 'Se connecter, c’est le mot de passe seul. Le code, l’écran de configuration et les codes de secours disparaissent.',
+            label: 'Pas maintenant',
+            help: 'Se connecter, c’est le mot de passe seul. On peut l’activer plus tard — mais en régénérant le projet, car répondre non ici retire le code du second facteur.',
           },
         },
       },
@@ -340,6 +359,8 @@ export const fr: Messages = {
         eyebrow: 'Langues',
         question: 'Le système va-t-il parler plus d’une langue ?',
         help: 'Il s’agit du produit que vous allez générer, pas de cette page.',
+        whatChanges:
+          'Chaque langue est un fichier de messages des deux côtés, API et web. Un test compare les jeux de clés entre eux et échoue quand il en manque une — c’est exactement ainsi qu’un écran apparaît en anglais au milieu du français, en production.',
         choices: {
           one: {
             label: 'Une langue',
@@ -355,14 +376,16 @@ export const fr: Messages = {
         eyebrow: 'Formules',
         question:
           'Allez-vous vendre des formules avec limite, du genre « jusqu’à 10 utilisateurs » ?',
-        help: 'C’est ce qui sépare une formule de base d’une formule avancée à l’intérieur du système.',
+        help: 'C’est la différence entre facturer par formule et espérer que personne n’abuse. C’est ce qui sépare une formule de base d’une formule avancée à l’intérieur du système.',
+        whatChanges:
+          'La limite est vérifiée au moment qui consomme le siège — l’acceptation de l’invitation —, dans la même transaction que la création de l’utilisateur, avec `pg_advisory_xact_lock` par entreprise et par ressource. Compter avant d’écrire ne verrouille rien : deux acceptations dans la même seconde dépasseraient le plafond.',
         choices: {
           yes: {
-            label: 'Oui',
-            help: 'Chaque entreprise reçoit une limite de personnes et des compteurs par ressource. La limite est vérifiée au moment d’écrire, avec un verrou dans la base : deux invitations acceptées dans la même seconde ne dépassent pas le plafond.',
+            label: 'Oui, je vendrai des formules',
+            help: 'Chaque entreprise reçoit une limite de personnes et des compteurs par ressource, avec les écrans d’usage et de changement de formule.',
           },
           no: {
-            label: 'Non',
+            label: 'Non, tout le monde pareil',
             help: 'Aucune limite et aucun compteur. Personne n’est bloqué pour cause de taille.',
           },
         },
@@ -372,28 +395,32 @@ export const fr: Messages = {
         question:
           'Les gens vont-ils envoyer des fichiers — photo de profil, pièces jointes, documents ?',
         help: 'Cela change où les fichiers sont stockés et comment ils arrivent au navigateur.',
+        whatChanges:
+          'Le fichier monte par l’API et va au stockage via le port `StorageProvider`, qui a trois opérations : `putObject`, `deleteObject` et `getPublicUrl`. Remplacer S3 par MinIO, R2 ou le disque local, c’est changer `STORAGE_DRIVER` dans le `.env` — la logique ne sait pas lequel est derrière.',
         choices: {
           yes: {
-            label: 'Oui',
-            help: 'L’envoi va directement au stockage, par un lien signé. Fonctionne avec Amazon S3, MinIO, Cloudflare R2 ou le disque de la machine, et passer de l’un à l’autre est une ligne de configuration.',
+            label: 'Oui, on enverra des fichiers',
+            help: 'Avatar et pièces jointes gardés hors de la base. Fonctionne avec Amazon S3, MinIO, Cloudflare R2 ou le disque de la machine, et passer de l’un à l’autre est une ligne de configuration.',
           },
           no: {
-            label: 'Non',
-            help: 'Pas d’envoi de fichier et pas de photo de profil. Moins de code, et aucun bucket à configurer.',
+            label: 'Pas besoin',
+            help: 'Pas d’envoi de fichier ni de photo de profil. Moins de code, et aucun bucket à configurer.',
           },
         },
       },
       captcha: {
         eyebrow: 'Robots',
         question: 'Les écrans publics ont-ils besoin d’une protection contre les robots ?',
-        help: 'Cela vaut pour l’inscription, la connexion et la récupération de mot de passe — les écrans qu’un robot essaie en masse.',
+        help: 'C’est la différence entre un robot qui essaie mille mots de passe par minute et un robot qui s’arrête au premier casse-tête. Cela vaut pour l’inscription, la connexion et la récupération de mot de passe.',
+        whatChanges:
+          'Le captcha entre sur les routes marquées `@RequireCaptcha` : inscription, connexion, renvoi de vérification et récupération de mot de passe. `CAPTCHA_DRIVER` et `NEXT_PUBLIC_CAPTCHA_DRIVER` doivent coïncider, sinon chaque envoi devient un 400 à cause d’un jeton que l’écran n’avait aucun moyen d’obtenir — le générateur écrit les deux. Un fournisseur en panne répond 503, pas « on laisse tout passer » : `CAPTCHA_FAIL_OPEN=false` est la valeur par défaut.',
         choices: {
           yes: {
-            label: 'Oui',
-            help: 'Livré avec Cloudflare Turnstile, et reCAPTCHA de Google en alternative. Si le fournisseur tombe, le système refuse au lieu de laisser tout passer — l’inverse, c’est ainsi qu’un formulaire reste ouvert sans que personne ne le remarque.',
+            label: 'Oui, je veux la protection',
+            help: 'Livré avec Cloudflare Turnstile, et reCAPTCHA de Google en alternative. Les clés se créent chez le fournisseur.',
           },
           no: {
-            label: 'Non',
+            label: 'Pas maintenant',
             help: 'Pas de casse-tête à l’écran. La limite de tentatives par adresse réseau reste active, donc ce n’est pas « sans protection » : c’est sans cette couche.',
           },
         },
@@ -412,24 +439,23 @@ export const fr: Messages = {
   },
 
   how: {
-    title: 'Comment ça marche',
-    lead: 'Quatre étapes, et seule la troisième prend du temps.',
+    title: 'Quatre étapes, et la quatrième est `pnpm dev`.',
     steps: [
       {
-        title: 'Répondez à l’assistant',
-        body: 'Douze questions en langage courant, et le point de départ répond déjà à la plupart. L’URL retient le choix : vous pouvez envoyer le lien à celui qui décide avec vous avant de rien lancer.',
+        title: 'Répondez aux questions',
+        body: 'Ici même, une à la fois. Chacune dit ce qui change dans le code si vous répondez oui ou non. On peut passer avec « utiliser la recommandation ».',
       },
       {
         title: 'Copiez la commande',
-        body: 'La page ne génère rien : elle assemble la chaîne. C’est le CLI, versionné avec le template, qui décide du contenu de votre dépôt — d’où le fait que la même recette produise le même projet aujourd’hui et dans deux ans.',
+        body: 'Le dernier écran affiche une seule commande, avec vos choix dedans. Il y a un lien partageable, si vous voulez discuter la configuration avec l’équipe avant.',
       },
       {
-        title: 'Lancez le npx',
-        body: 'Le générateur copie le template, supprime ce que vous n’avez pas demandé, taille le schema Prisma, assemble la baseline SQL, remplace le nom sous toutes ses formes, écrit le `.env` avec des secrets générés, puis lance `git init`.',
+        title: 'Lancez-la dans le terminal',
+        body: 'Elle télécharge le code, renomme tout pour votre projet — paquets, base, variables, conteneurs —, monte Postgres et Redis dans Docker et amorce la base.',
       },
       {
         title: '`pnpm dev`',
-        body: 'Docker démarré, base migrée, admin créé par le seed. Deux minutes après le `npx`, vous regardez l’écran de connexion de votre produit.',
+        body: 'API sur `:4201`, web sur `:4200`, e-mail capturé par Mailpit sur `:4207`. L’identifiant de l’admin amorcé est dans le README.',
       },
     ],
     renameTitle: 'Le renommage est prouvé, pas relu',

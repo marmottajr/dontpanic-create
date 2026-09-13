@@ -1,6 +1,7 @@
 'use client';
 
 import { ChoiceList } from './choice-list';
+import { WhatChanges } from './what-changes';
 import { WIZARD_TERMS } from '@/content/wizard-terms';
 import { WizardIssues } from './wizard-issues';
 import { CommandBlock } from '../command-block';
@@ -46,6 +47,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
             onSlugChange={ctx.setSlug}
           />
           <DerivedNames messages={messages} names={ctx.names} />
+          <WhatChanges label={w.whatChangesLabel}>{w.steps.name.whatChanges}</WhatChanges>
         </div>
       );
 
@@ -93,12 +95,15 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
               );
             })}
           </div>
+          <div className="mt-6">
+            <WhatChanges label={w.whatChangesLabel}>{w.steps.preset.whatChanges}</WhatChanges>
+          </div>
         </fieldset>
       );
 
     case 'tenancy':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.tenancy.whatChanges}>
           <ChoiceList
             name="wizard-tenancy"
             legend={w.steps.tenancy.question}
@@ -114,7 +119,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'entry':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.entry.whatChanges}>
           <ChoiceList
             name="wizard-entry"
             legend={w.steps.entry.question}
@@ -135,7 +140,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'social':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.social.whatChanges}>
           <ChoiceList
             name="wizard-social"
             legend={w.steps.social.question}
@@ -170,7 +175,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'twoFactor':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.twoFactor.whatChanges}>
           <ChoiceList
             name="wizard-2fa"
             legend={w.steps.twoFactor.question}
@@ -186,7 +191,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'languages':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.languages.whatChanges}>
           <ChoiceList
             name="wizard-languages"
             legend={w.steps.languages.question}
@@ -220,7 +225,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'plans':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.plans.whatChanges}>
           <ChoiceList
             name="wizard-plans"
             legend={w.steps.plans.question}
@@ -236,7 +241,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'files':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.files.whatChanges}>
           <ChoiceList
             name="wizard-files"
             legend={w.steps.files.question}
@@ -252,7 +257,7 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
 
     case 'captcha':
       return (
-        <StepWithIssues messages={messages}>
+        <StepWithIssues messages={messages} whatChanges={w.steps.captcha.whatChanges}>
           <ChoiceList
             name="wizard-captcha"
             legend={w.steps.captcha.question}
@@ -276,17 +281,23 @@ export function WizardStepBody({ messages }: { messages: Messages }): React.Reac
   }
 }
 
-/** Envolve um passo de escolha com a lista de incoerências que a escolha possa causar. */
+/**
+ * Um passo de escolha: as opções, o bloco técnico, e as incoerências que a resposta
+ * possa ter criado — nessa ordem, que é a de quem lê: escolher, entender, corrigir.
+ */
 function StepWithIssues({
   messages,
+  whatChanges,
   children,
 }: {
   messages: Messages;
+  whatChanges: string;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {children}
+      <WhatChanges label={messages.wizard.whatChangesLabel}>{whatChanges}</WhatChanges>
       <WizardIssues messages={messages} />
     </div>
   );
@@ -405,7 +416,7 @@ function ReviewStep({ messages }: { messages: Messages }): React.ReactElement {
                 escolhas, e é a segunda vez que ela vê o nome do recurso ao lado da
                 resposta — é essa repetição que faz o termo grudar. Fica abaixo do
                 rótulo, na mesma coluna, para não empurrar o valor. */}
-            <dt className="w-[7.5rem] shrink-0">
+            <dt className="w-[7.5rem] shrink-0 sm:w-[11rem]">
               <span className="label block text-faint">{row.label}</span>
               {WIZARD_TERMS[row.step] ? (
                 <span className="mt-0.5 block font-mono text-[10px] leading-tight text-faint/70">

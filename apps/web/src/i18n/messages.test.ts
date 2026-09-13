@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { LOCALES, SOURCE_LOCALE, type Locale } from './locales';
 import { MESSAGES } from './messages';
 import { PROOF_IDS } from './messages/types';
+import { ANSWERABLE_STEPS } from '@/lib/configurator-context';
 import { FEATURE_IDS, PRESET_IDS } from '@/lib/recipe-bridge';
 import { STACK } from '@/content/stack';
 
@@ -100,6 +101,30 @@ describe('dicionários', () => {
       expect(step.question, id).toBeTruthy();
       expect(step.help, id).toBeTruthy();
     }
+  });
+
+  /**
+   * O bloco técnico existe nos dez passos que perguntam, e só neles: revisão e
+   * "pronto" não são recursos. É onde mora toda afirmação verificável do assistente,
+   * então um idioma sem ele deixaria metade do público sem a informação que veio
+   * buscar.
+   */
+  it.each(LOCALES)('%s tem o bloco técnico nos dez passos que perguntam', (locale: Locale) => {
+    const steps = MESSAGES[locale].wizard.steps;
+    for (const step of ANSWERABLE_STEPS) {
+      expect(steps[step].whatChanges, `${locale}/${step}`).toBeTruthy();
+    }
+    expect(MESSAGES[locale].wizard.whatChangesLabel).toBeTruthy();
+  });
+
+  /**
+   * Os números que a chamada promete saem daqui. Se alguém acrescentar um passo que
+   * pergunta, ou um sexto erro à prova, este teste falha e aponta o texto que passou a
+   * mentir — que é a única forma de o ADR 0006 sobreviver a quem não leu o ADR 0006.
+   */
+  it('a chamada promete a contagem que o código tem', () => {
+    expect(ANSWERABLE_STEPS).toHaveLength(10); // "Dez perguntas. Um comando no fim."
+    expect(PROOF_IDS).toHaveLength(5); // "Ver os cinco erros"
   });
 
   /**

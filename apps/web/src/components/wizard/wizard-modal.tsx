@@ -152,8 +152,10 @@ export function WizardModal({ messages }: { messages: Messages }): React.ReactEl
         <header className="shrink-0 border-b border-rule px-5 py-3 sm:px-7">
           <div className="flex items-center justify-between gap-4">
             <p className="label text-amber">
+              {/* Zero à esquerda: mantém a largura do rótulo constante, para o texto
+                  não saltar ao passar de 9 para 10. */}
               {w.progress
-                .replace('{n}', String(wizard.index + 1))
+                .replace('{n}', String(wizard.index + 1).padStart(2, '0'))
                 .replace('{total}', String(wizard.total))}
             </p>
             <button

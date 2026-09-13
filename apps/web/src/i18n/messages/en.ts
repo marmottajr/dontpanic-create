@@ -25,12 +25,12 @@ export const en: Messages = {
     mastheadLabel: 'Don’t Panic',
     title:
       'The security decisions an AI gets silently wrong are already made, documented and tested.',
-    lead: 'DontPanic is a full-stack SaaS boilerplate — NestJS, Next.js, Prisma, Postgres with real Row Level Security. Every security choice has already been made, is explained in the `CLAUDE.md` your agent reads before writing a line, and has a test that fails when someone undoes it. As a side effect, context goes into your product instead of rediscovering how refresh token rotation works.',
+    lead: 'Pick what your system needs. Get one command. The code arrives with your project’s name in everything — packages, database, environment variables — and with the hard choices already made the right way.',
     nameCta: 'Start',
+    ctaNote: 'Ten questions in plain language. You can skip any of them.',
     commandLabel: 'Command for the default preset',
-    commandNote:
-      'Needs Node 24 and pnpm. To pick the parts, answer the wizard — it is twelve questions.',
-    ctaProof: 'See the mistakes this avoids',
+    commandNote: 'Needs Node 24 and pnpm.',
+    ctaProof: 'See the five mistakes',
     facts: [
       {
         value: '78,533',
@@ -39,6 +39,12 @@ export const en: Messages = {
       { value: '5', label: 'resources swappable by environment variable, without touching logic' },
       { value: '2 min', label: 'from npx to `pnpm dev`, database migrated and admin seeded' },
     ],
+  },
+
+  cta: {
+    title: 'Ten questions. One command at the end.',
+    text: 'One question per screen, in plain language, with what it changes in the system written underneath. No wall of fourteen switches.',
+    note: 'no sign-up · you can go back at any step',
   },
 
   proof: {
@@ -179,7 +185,7 @@ export const en: Messages = {
       },
       files: {
         label: 'File uploads',
-        text: 'Avatars and attachments via pre-signed URL, behind the storage port: S3, MinIO, R2 or local disk.',
+        text: 'Avatars and attachments kept outside the database, behind the storage port: S3, MinIO, R2 or local disk, swapped with `STORAGE_DRIVER`.',
       },
       platform: {
         label: 'Platform panel',
@@ -255,22 +261,29 @@ export const en: Messages = {
     yes: 'Yes',
     no: 'No',
     edit: 'Edit',
+    whatChangesLabel: 'What changes in your system',
     steps: {
       name: {
         eyebrow: 'Name',
         question: 'What will your system be called?',
         help: 'It can be the product’s name or the company’s. Everything else comes from it: the folder, the package, the database, even the user Postgres creates. The derived forms appear below as you type.',
+        whatChanges:
+          'The name goes into 531 places, in three different cases: package, pnpm scope, database name, environment-variable prefix, bucket, and the SQL that creates the restricted Postgres role. CI proves none was missed — it generates with a test name and demands zero occurrences of the old one from a `grep -ri`.',
       },
       preset: {
         eyebrow: 'Starting point',
         question: 'Which of these looks most like what you are about to build?',
         help: 'This only answers the next questions for you. Nothing gets locked: if an answer does not fit, change it on its own step or in the review at the end.',
+        whatChanges:
+          'The starting point only fills in the next answers. CI tests the matrix of all four in full: it generates a project from each, installs, typechecks and runs unit and e2e. Outside it, the combination is allowed and untested — and the CLI says so, in one line.',
       },
       tenancy: {
         eyebrow: 'Companies',
         question:
           'Will your system serve several different companies, each one seeing only its own data?',
-        help: 'It is the difference between a product you sell to many customers and a system that runs for a single company.',
+        help: 'It is the difference between “customer A saw customer B’s data” and “the database refused the row before the application noticed”.',
+        whatChanges:
+          "The separation belongs to Postgres, not to the application: every request declares its scope with `SET LOCAL` inside the transaction, and the Row Level Security policies compare against `current_setting('app.current_tenant_id', true)`. With no scope, the comparison is never true — the result comes back empty, never from the wrong company. A new table with `tenantId` protects itself: `SELECT app.apply_tenant_rls();` at the end of the migration.",
         choices: {
           yes: {
             label: 'Yes, several companies',
@@ -285,7 +298,9 @@ export const en: Messages = {
       entry: {
         eyebrow: 'Getting in',
         question: 'How will people get into the system?',
-        help: 'Who may create an account is the decision that changes your product the most — and the one that goes wrong most often when it is left for later.',
+        help: 'It is the difference between waking up to a thousand test accounts and having to create every person by hand. Who may create an account is the decision that changes your product the most — and the one that goes wrong most often when it is left for later.',
+        whatChanges:
+          "The invitation stores only the token’s SHA-256: a leaked database yields no usable link. A partial unique index (`WHERE status = 'PENDING'`) allows at most one live invitation per email per company, and closes the race of two admins inviting the same colleague at the same moment. The email goes out after the commit — inside the transaction, a rollback would hand out a valid link to a company that does not exist.",
         choices: {
           open: {
             label: 'Anyone can sign up',
@@ -304,30 +319,34 @@ export const en: Messages = {
       social: {
         eyebrow: 'Social login',
         question: 'Do you want the sign-in-with-Google, Apple or GitHub button?',
-        help: 'It removes a step for the user, and removes forgotten passwords too. In exchange, each provider needs a key you create on their site.',
+        help: 'It is the difference between one more password for your user to forget and a button they already use everywhere. In exchange, each provider wants a key you create on their site.',
+        whatChanges:
+          'The account is recognised by the immutable `providerAccountId`, with `@@unique([provider, providerAccountId])` — never by the email, which gets recycled when someone leaves the company. An address the provider did not mark as verified links nothing: the callback returns `unverified_email`. The `OAUTH_PROVIDERS` list and the web one must match, or the extra button 404s; the generator writes both sides.',
         choices: {
           yes: {
-            label: 'Yes',
-            help: 'The account is recognised by the identifier the provider gives, never by the email: work addresses get recycled, and matching by email is how someone inherits the account of a person who left.',
+            label: 'Yes, I want the button',
+            help: 'Google and GitHub on, Apple available. You create the keys in each provider’s console and paste them into the `.env`.',
           },
           no: {
-            label: 'No',
-            help: 'Email and password only, and the providers’ code leaves the project — less to maintain. To get it back, generate again with social login on.',
+            label: 'No, email and password only',
+            help: 'The providers’ code leaves the project — less to maintain. To get it back, generate again with social login on.',
           },
         },
       },
       twoFactor: {
         eyebrow: 'Second factor',
         question: 'Should people be able to require a code from their phone to sign in?',
-        help: 'It is the six-digit code from an app like Google Authenticator. Whoever turns it on protects the account even if the password leaks.',
+        help: 'It is the difference between “they stole her password” and “they stole her password and did not get in”. The person registers an authenticator app once, then types six digits when the system asks.',
+        whatChanges:
+          'The second factor applies at every door in, social login included: the callback issues no session, hands over a ticket in the `dp_2fa_ticket` cookie — five minutes, burned after a few wrong attempts — and the real session is only born after the six digits. Single-use recovery codes come with it, and `TWO_FACTOR_REQUIRED=true` starts demanding the factor from everyone.',
         choices: {
           yes: {
-            label: 'Yes',
-            help: 'Each person turns it on for their own account, with backup codes in case the phone is lost. Social login respects it: with the second factor on, signing in with Google does not skip the step.',
+            label: 'Yes, I want a second factor',
+            help: 'Each person turns it on for their own account, with recovery codes in case the phone is lost. To require it from everyone, the project ships `TWO_FACTOR_REQUIRED`.',
           },
           no: {
-            label: 'No',
-            help: 'Signing in is password only. The code, the setup screen and the backup codes all go.',
+            label: 'Not now',
+            help: 'Signing in is password only. You can turn it on later — but by generating the project again, because answering no here removes the second factor’s code.',
           },
         },
       },
@@ -335,6 +354,8 @@ export const en: Messages = {
         eyebrow: 'Languages',
         question: 'Will the system speak more than one language?',
         help: 'This is about the product you are generating, not about this page.',
+        whatChanges:
+          'Each language is a message file on both sides, API and web. A test compares the key sets between them and fails when one is missing — which is exactly how a screen shows up in English in the middle of Portuguese, in production.',
         choices: {
           one: {
             label: 'One language',
@@ -349,14 +370,16 @@ export const en: Messages = {
       plans: {
         eyebrow: 'Plans',
         question: 'Will you sell plans with limits, the “up to 10 users” kind?',
-        help: 'It is what separates a basic plan from an advanced one inside the system itself.',
+        help: 'It is the difference between charging per plan and hoping nobody abuses it. It is what separates a basic plan from an advanced one inside the system itself.',
+        whatChanges:
+          'The limit is checked at the moment the seat is consumed — accepting the invitation — inside the same transaction that creates the user, with `pg_advisory_xact_lock` per company and per resource. Counting before writing locks nothing: two acceptances in the same second would go over the cap.',
         choices: {
           yes: {
-            label: 'Yes',
-            help: 'Each company gets a people limit and counters per resource. The limit is checked at write time, with a lock in the database: two invitations accepted in the same second cannot go over the cap.',
+            label: 'Yes, I will sell plans',
+            help: 'Each company gets a people limit and counters per resource, with the usage and plan-change screens.',
           },
           no: {
-            label: 'No',
+            label: 'No, everyone the same',
             help: 'No limits and no counters. Nobody is stopped for being too big.',
           },
         },
@@ -365,13 +388,15 @@ export const en: Messages = {
         eyebrow: 'Files',
         question: 'Will people upload files — profile pictures, attachments, documents?',
         help: 'It changes where the files live and how they reach the browser.',
+        whatChanges:
+          'The file goes up through the API and into storage via the `StorageProvider` port, which has three operations: `putObject`, `deleteObject` and `getPublicUrl`. Swapping S3 for MinIO, R2 or local disk is changing `STORAGE_DRIVER` in the `.env` — the logic does not know which one is behind it.',
         choices: {
           yes: {
-            label: 'Yes',
-            help: 'The upload goes straight to storage, through a signed link. Works with Amazon S3, MinIO, Cloudflare R2 or the machine’s disk, and switching between them is one line of configuration.',
+            label: 'Yes, people will upload files',
+            help: 'Avatars and attachments kept outside the database. Works with Amazon S3, MinIO, Cloudflare R2 or the machine’s disk, and switching between them is one line of configuration.',
           },
           no: {
-            label: 'No',
+            label: 'Not needed',
             help: 'No uploads and no profile picture. Less code, and no bucket to configure.',
           },
         },
@@ -379,14 +404,16 @@ export const en: Messages = {
       captcha: {
         eyebrow: 'Bots',
         question: 'Do the public screens need protection against bots?',
-        help: 'It applies to signup, login and password recovery — the screens a bot tries in bulk.',
+        help: 'It is the difference between a bot trying a thousand passwords a minute and it stopping at the first puzzle. It applies to signup, login and password recovery.',
+        whatChanges:
+          'The captcha goes on the routes marked `@RequireCaptcha`: signup, login, verification resend and password recovery. `CAPTCHA_DRIVER` and `NEXT_PUBLIC_CAPTCHA_DRIVER` have to match, or every submit becomes a 400 over a token the screen never had a way to get — the generator writes both. A provider that is down answers 503, not “let everyone through”: `CAPTCHA_FAIL_OPEN=false` is the default.',
         choices: {
           yes: {
-            label: 'Yes',
-            help: 'Comes with Cloudflare Turnstile, and Google reCAPTCHA as an alternative. If the provider goes down, the system refuses instead of letting everyone through — the opposite is how a form stays open without anyone noticing.',
+            label: 'Yes, I want protection',
+            help: 'Comes with Cloudflare Turnstile, and Google reCAPTCHA as an alternative. You create the keys at the provider.',
           },
           no: {
-            label: 'No',
+            label: 'Not now',
             help: 'No puzzle on screen. The attempt limit per network address still applies, so it is not “no protection”: it is without that layer.',
           },
         },
@@ -405,24 +432,23 @@ export const en: Messages = {
   },
 
   how: {
-    title: 'How it works',
-    lead: 'Four steps, and only the third one takes any time.',
+    title: 'Four steps, and the fourth is `pnpm dev`.',
     steps: [
       {
-        title: 'Answer the wizard',
-        body: 'Twelve questions in plain language, and the starting point already answers most of them. The URL keeps the choice, so you can send the link to whoever decides with you before running anything.',
+        title: 'Answer the questions',
+        body: 'Right here, one at a time. Each one says what changes in the code if you answer yes or no. You can skip with “use the recommended”.',
       },
       {
         title: 'Copy the command',
-        body: 'The page generates nothing: it assembles the string. The CLI, versioned together with the template, decides your repository’s contents — which is why the same recipe produces the same project today and in two years.',
+        body: 'The last screen shows a single command with your choices inside it. There is a shareable link, if you want to discuss the configuration with your team first.',
       },
       {
-        title: 'Run the npx',
-        body: 'The generator copies the template, deletes what you did not ask for, prunes the Prisma schema, assembles the SQL baseline, replaces the name in every form, writes the `.env` with generated secrets, and runs `git init`.',
+        title: 'Run it in the terminal',
+        body: 'It downloads the code, renames everything to your project — packages, database, variables, containers —, brings Postgres and Redis up in Docker and seeds the database.',
       },
       {
         title: '`pnpm dev`',
-        body: 'With Docker up, the database migrated and the admin seeded. Two minutes after the `npx` you are looking at your product’s login screen.',
+        body: 'API on `:4201`, web on `:4200`, email caught by Mailpit on `:4207`. The seeded admin login is in the README.',
       },
     ],
     renameTitle: 'The rename is proven, not reviewed',

@@ -26,12 +26,12 @@ export const de: Messages = {
     mastheadLabel: 'Don’t Panic',
     title:
       'Die Sicherheitsentscheidungen, die eine KI still falsch trifft, sind hier schon getroffen, dokumentiert und getestet.',
-    lead: 'DontPanic ist ein Full-Stack-SaaS-Boilerplate — NestJS, Next.js, Prisma, Postgres mit echtem Row Level Security. Jede Sicherheitsentscheidung ist gefallen, steht in der `CLAUDE.md`, die dein Agent vor der ersten Zeile liest, und hat einen Test, der fehlschlägt, sobald jemand sie rückgängig macht. Nebeneffekt: der Kontext geht in dein Produkt, statt Refresh-Token-Rotation neu herzuleiten.',
+    lead: 'Wähle, was dein System braucht. Bekomme einen Befehl. Der Code kommt mit dem Namen deines Projekts in allem — Pakete, Datenbank, Umgebungsvariablen — und mit den schwierigen Entscheidungen bereits richtig getroffen.',
     nameCta: 'Anfangen',
+    ctaNote: 'Zehn Fragen in normaler Sprache. Jede davon lässt sich überspringen.',
     commandLabel: 'Befehl des Standard-Presets',
-    commandNote:
-      'Braucht Node 24 und pnpm. Um die Teile zu wählen: den Assistenten beantworten — zwölf Fragen.',
-    ctaProof: 'Die vermiedenen Fehler ansehen',
+    commandNote: 'Braucht Node 24 und pnpm.',
+    ctaProof: 'Die fünf Fehler ansehen',
     facts: [
       {
         value: '78.533',
@@ -46,6 +46,12 @@ export const de: Messages = {
         label: 'von npx bis `pnpm dev`, Datenbank migriert und Admin per Seed angelegt',
       },
     ],
+  },
+
+  cta: {
+    title: 'Zehn Fragen. Am Ende ein Befehl.',
+    text: 'Eine Frage pro Bildschirm, in normaler Sprache, mit dem, was sie im System ändert, direkt darunter. Keine vierzehn Schalter auf einmal.',
+    note: 'ohne Registrierung · jederzeit einen Schritt zurück',
   },
 
   proof: {
@@ -186,7 +192,7 @@ export const de: Messages = {
       },
       files: {
         label: 'Datei-Upload',
-        text: 'Avatar und Anhänge per pre-signed URL, hinter dem Storage-Port: S3, MinIO, R2 oder lokale Platte.',
+        text: 'Avatar und Anhänge außerhalb der Datenbank abgelegt, hinter dem Storage-Port: S3, MinIO, R2 oder lokale Platte, per `STORAGE_DRIVER` austauschbar.',
       },
       platform: {
         label: 'Plattform-Panel',
@@ -262,22 +268,29 @@ export const de: Messages = {
     yes: 'Ja',
     no: 'Nein',
     edit: 'Ändern',
+    whatChangesLabel: 'Was sich in deinem System ändert',
     steps: {
       name: {
         eyebrow: 'Name',
         question: 'Wie soll dein System heißen?',
         help: 'Es kann der Name des Produkts oder der Firma sein. Alles andere kommt daher: der Ordner, das Paket, die Datenbank und sogar der Benutzer, den Postgres anlegt. Die abgeleiteten Formen erscheinen hier unten, während du tippst.',
+        whatChanges:
+          'Der Name landet an 531 Stellen, in drei verschiedenen Schreibweisen: Paket, pnpm-Scope, Datenbankname, Präfix der Umgebungsvariablen, Bucket, und das SQL, das die eingeschränkte Postgres-Rolle anlegt. Die CI beweist, dass keine übrig blieb — sie generiert mit einem Testnamen und verlangt null Treffer des alten aus einem `grep -ri`.',
       },
       preset: {
         eyebrow: 'Ausgangspunkt',
         question: 'Welcher davon sieht am ehesten nach dem aus, was du bauen willst?',
         help: 'Das beantwortet nur die nächsten Fragen für dich. Nichts wird festgeschrieben: passt eine Antwort nicht, ändere sie in ihrem Schritt oder in der Übersicht am Ende.',
+        whatChanges:
+          'Der Ausgangspunkt füllt nur die nächsten Antworten aus. Die CI testet die Matrix aller vier vollständig: sie generiert je ein Projekt, installiert, prüft Typen und fährt Unit- und e2e-Tests. Außerhalb davon ist die Kombination erlaubt und ungetestet — und das CLI sagt es, in einer Zeile.',
       },
       tenancy: {
         eyebrow: 'Firmen',
         question:
           'Soll dein System mehrere verschiedene Firmen bedienen, von denen jede nur die eigenen Daten sieht?',
-        help: 'Das ist der Unterschied zwischen einem Produkt, das du an viele Kunden verkaufst, und einem System, das für eine einzige Firma läuft.',
+        help: 'Das ist der Unterschied zwischen „Kunde A hat die Daten von Kunde B gesehen“ und „die Datenbank hat die Zeile abgelehnt, bevor die Anwendung es merkte“.',
+        whatChanges:
+          "Die Trennung gehört Postgres, nicht der Anwendung: jeder Request deklariert seinen Scope mit `SET LOCAL` innerhalb der Transaktion, und die Row-Level-Security-Policies vergleichen gegen `current_setting('app.current_tenant_id', true)`. Ohne Scope ist der Vergleich nie wahr — das Ergebnis kommt leer zurück, nie aus der falschen Firma. Eine neue Tabelle mit `tenantId` schützt sich selbst: `SELECT app.apply_tenant_rls();` am Ende der Migration.",
         choices: {
           yes: {
             label: 'Ja, mehrere Firmen',
@@ -292,7 +305,9 @@ export const de: Messages = {
       entry: {
         eyebrow: 'Zugang',
         question: 'Wie kommen die Leute ins System?',
-        help: 'Wer ein Konto anlegen darf, ist die Entscheidung, die dein Produkt am stärksten verändert — und die am häufigsten schiefgeht, wenn man sie aufschiebt.',
+        help: 'Das ist der Unterschied zwischen tausend Testkonten am Morgen und jede Person von Hand anlegen zu müssen. Wer ein Konto anlegen darf, ist die Entscheidung, die dein Produkt am stärksten verändert — und die am häufigsten schiefgeht, wenn man sie aufschiebt.',
+        whatChanges:
+          "Die Einladung speichert nur den SHA-256 des Tokens: eine abgeflossene Datenbank ergibt keinen brauchbaren Link. Ein partieller Unique-Index (`WHERE status = 'PENDING'`) erlaubt höchstens eine offene Einladung je E-Mail und Firma und schließt das Rennen zweier Admins, die im selben Moment denselben Kollegen einladen. Die E-Mail geht nach dem Commit raus — innerhalb der Transaktion würde ein Rollback einen gültigen Link auf eine Firma ausliefern, die es nicht gibt.",
         choices: {
           open: {
             label: 'Jeder kann sich registrieren',
@@ -311,30 +326,34 @@ export const de: Messages = {
       social: {
         eyebrow: 'Social Login',
         question: 'Willst du den Knopf „Anmelden mit Google, Apple oder GitHub“?',
-        help: 'Er nimmt dem Nutzer einen Schritt ab, und auch das vergessene Passwort. Dafür braucht jeder Anbieter einen Schlüssel, den du auf dessen Seite anlegst.',
+        help: 'Das ist der Unterschied zwischen einem weiteren Passwort, das dein Nutzer vergessen kann, und einem Knopf, den er überall schon benutzt. Dafür will jeder Anbieter einen Schlüssel, den du bei ihm anlegst.',
+        whatChanges:
+          'Das Konto wird über die unveränderliche `providerAccountId` erkannt, mit `@@unique([provider, providerAccountId])` — nie über die E-Mail, die weiterverwendet wird, wenn jemand die Firma verlässt. Eine Adresse, die der Anbieter nicht als verifiziert markiert hat, verknüpft nichts: der Callback gibt `unverified_email` zurück. Die Liste in `OAUTH_PROVIDERS` und die des Web-Teils müssen übereinstimmen, sonst führt der überzählige Knopf zu einem 404; der Generator schreibt beide Seiten.',
         choices: {
           yes: {
-            label: 'Ja',
-            help: 'Das Konto wird über die Kennung erkannt, die der Anbieter vergibt, nie über die E-Mail: Arbeitsadressen werden weiterverwendet, und eine Zuordnung über die E-Mail ist genau, wie jemand das Konto einer ausgeschiedenen Person erbt.',
+            label: 'Ja, ich will den Knopf',
+            help: 'Google und GitHub an, Apple verfügbar. Die Schlüssel legst du in der Konsole des jeweiligen Anbieters an und trägst sie in die `.env` ein.',
           },
           no: {
-            label: 'Nein',
-            help: 'Nur E-Mail und Passwort, und der Code der Anbieter verlässt das Projekt — weniger zu pflegen. Um ihn zurückzubekommen, erneut mit Social Login generieren.',
+            label: 'Nein, nur E-Mail und Passwort',
+            help: 'Der Code der Anbieter verlässt das Projekt — weniger zu pflegen. Um ihn zurückzubekommen, erneut mit Social Login generieren.',
           },
         },
       },
       twoFactor: {
         eyebrow: 'Zweiter Faktor',
         question: 'Sollen Leute einen Code vom Handy verlangen können, um sich anzumelden?',
-        help: 'Das ist der sechsstellige Code aus einer App wie Google Authenticator. Wer ihn einschaltet, schützt das Konto selbst dann, wenn das Passwort abfließt.',
+        help: 'Das ist der Unterschied zwischen „sie haben ihr Passwort gestohlen“ und „sie haben ihr Passwort gestohlen und kamen nicht rein“. Die Person richtet einmal eine Authenticator-App ein und tippt danach sechs Ziffern, wenn das System fragt.',
+        whatChanges:
+          'Der zweite Faktor gilt an jeder Eingangstür, Social Login eingeschlossen: der Callback gibt keine Session aus, sondern ein Ticket im Cookie `dp_2fa_ticket` — fünf Minuten, nach wenigen Fehlversuchen verbrannt — und die echte Session entsteht erst nach den sechs Ziffern. Einmal-Wiederherstellungscodes kommen mit, und `TWO_FACTOR_REQUIRED=true` verlangt den Faktor dann von allen.',
         choices: {
           yes: {
-            label: 'Ja',
-            help: 'Jede Person schaltet ihn für das eigene Konto ein, mit Backup-Codes für den Fall eines verlorenen Handys. Social Login respektiert das: mit eingeschaltetem zweitem Faktor überspringt die Anmeldung über Google den Schritt nicht.',
+            label: 'Ja, ich will den zweiten Faktor',
+            help: 'Jede Person schaltet ihn für das eigene Konto ein, mit Wiederherstellungscodes für den Fall eines verlorenen Handys. Um ihn von allen zu verlangen, bringt das Projekt `TWO_FACTOR_REQUIRED` mit.',
           },
           no: {
-            label: 'Nein',
-            help: 'Anmelden geht nur mit Passwort. Der Code, die Einrichtungsmaske und die Backup-Codes fallen weg.',
+            label: 'Jetzt nicht',
+            help: 'Anmelden geht nur mit Passwort. Später einschalten ist möglich — aber durch erneutes Generieren, denn ein Nein hier entfernt den Code des zweiten Faktors.',
           },
         },
       },
@@ -342,6 +361,8 @@ export const de: Messages = {
         eyebrow: 'Sprachen',
         question: 'Soll das System mehr als eine Sprache sprechen?',
         help: 'Es geht um das Produkt, das du erzeugst, nicht um diese Seite.',
+        whatChanges:
+          'Jede Sprache ist eine Nachrichtendatei auf beiden Seiten, API und Web. Ein Test vergleicht die Schlüsselmengen und schlägt fehl, wenn eine fehlt — genau so erscheint eine Maske auf Englisch mitten im Deutschen, in Produktion.',
         choices: {
           one: {
             label: 'Eine Sprache',
@@ -356,14 +377,16 @@ export const de: Messages = {
       plans: {
         eyebrow: 'Tarife',
         question: 'Willst du Tarife mit Limit verkaufen, nach dem Muster „bis zu 10 Benutzer“?',
-        help: 'Das trennt einen Basistarif von einem fortgeschrittenen innerhalb des Systems selbst.',
+        help: 'Das ist der Unterschied zwischen nach Tarif abrechnen und hoffen, dass niemand es übertreibt. Es trennt einen Basistarif von einem fortgeschrittenen innerhalb des Systems.',
+        whatChanges:
+          'Das Limit wird in dem Moment geprüft, der den Platz verbraucht — die Annahme der Einladung —, in derselben Transaktion, die den Benutzer anlegt, mit `pg_advisory_xact_lock` je Firma und je Ressource. Zählen vor dem Schreiben sperrt nichts: zwei Annahmen in derselben Sekunde kämen über die Obergrenze.',
         choices: {
           yes: {
-            label: 'Ja',
-            help: 'Jede Firma bekommt ein Personenlimit und Zähler je Ressource. Das Limit wird beim Schreiben geprüft, mit einer Sperre in der Datenbank: zwei in derselben Sekunde angenommene Einladungen kommen nicht über die Obergrenze.',
+            label: 'Ja, ich werde Tarife verkaufen',
+            help: 'Jede Firma bekommt ein Personenlimit und Zähler je Ressource, mit den Masken für Verbrauch und Tarifwechsel.',
           },
           no: {
-            label: 'Nein',
+            label: 'Nein, für alle gleich',
             help: 'Keine Limits und keine Zähler. Niemand wird wegen der Größe gebremst.',
           },
         },
@@ -372,13 +395,15 @@ export const de: Messages = {
         eyebrow: 'Dateien',
         question: 'Werden Leute Dateien hochladen — Profilbild, Anhänge, Dokumente?',
         help: 'Das ändert, wo die Dateien liegen und wie sie in den Browser kommen.',
+        whatChanges:
+          'Die Datei geht über die API in den Speicher, über den Port `StorageProvider` mit drei Operationen: `putObject`, `deleteObject` und `getPublicUrl`. S3 gegen MinIO, R2 oder die lokale Platte zu tauschen heißt, `STORAGE_DRIVER` in der `.env` zu ändern — die Logik weiß nicht, was dahinter steckt.',
         choices: {
           yes: {
-            label: 'Ja',
-            help: 'Der Upload geht direkt in den Speicher, über einen signierten Link. Funktioniert mit Amazon S3, MinIO, Cloudflare R2 oder der Platte der Maschine, und der Wechsel dazwischen ist eine Zeile Konfiguration.',
+            label: 'Ja, es werden Dateien hochgeladen',
+            help: 'Avatar und Anhänge außerhalb der Datenbank abgelegt. Funktioniert mit Amazon S3, MinIO, Cloudflare R2 oder der Platte der Maschine, und der Wechsel dazwischen ist eine Zeile Konfiguration.',
           },
           no: {
-            label: 'Nein',
+            label: 'Nicht nötig',
             help: 'Kein Upload und kein Profilbild. Weniger Code, und kein Bucket zu konfigurieren.',
           },
         },
@@ -386,14 +411,16 @@ export const de: Messages = {
       captcha: {
         eyebrow: 'Bots',
         question: 'Brauchen die öffentlichen Masken Schutz gegen Bots?',
-        help: 'Das gilt für Registrierung, Anmeldung und Passwort-Wiederherstellung — die Masken, die ein Bot massenhaft durchprobiert.',
+        help: 'Das ist der Unterschied zwischen einem Bot, der tausend Passwörter pro Minute probiert, und einem, der beim ersten Rätsel stehen bleibt. Gilt für Registrierung, Anmeldung und Passwort-Wiederherstellung.',
+        whatChanges:
+          'Das Captcha greift auf den mit `@RequireCaptcha` markierten Routen: Registrierung, Anmeldung, erneuter Verifizierungsversand und Passwort-Wiederherstellung. `CAPTCHA_DRIVER` und `NEXT_PUBLIC_CAPTCHA_DRIVER` müssen zusammenpassen, sonst wird jedes Absenden ein 400 wegen eines Tokens, das die Maske nie bekommen konnte — der Generator schreibt beide. Ein ausgefallener Anbieter antwortet mit 503, nicht mit „alle durchlassen“: `CAPTCHA_FAIL_OPEN=false` ist der Standard.',
         choices: {
           yes: {
-            label: 'Ja',
-            help: 'Kommt mit Cloudflare Turnstile, und Google reCAPTCHA als Alternative. Fällt der Anbieter aus, verweigert das System statt alle durchzulassen — umgekehrt bleibt ein Formular offen, ohne dass es jemand merkt.',
+            label: 'Ja, ich will den Schutz',
+            help: 'Kommt mit Cloudflare Turnstile, und Google reCAPTCHA als Alternative. Die Schlüssel legst du beim Anbieter an.',
           },
           no: {
-            label: 'Nein',
+            label: 'Jetzt nicht',
             help: 'Kein Rätsel auf dem Bildschirm. Das Versuchslimit pro Netzadresse gilt weiter, es ist also nicht „kein Schutz“: es ist ohne diese Schicht.',
           },
         },
@@ -412,24 +439,23 @@ export const de: Messages = {
   },
 
   how: {
-    title: 'So funktioniert es',
-    lead: 'Vier Schritte, und nur der dritte dauert.',
+    title: 'Vier Schritte, und der vierte ist `pnpm dev`.',
     steps: [
       {
-        title: 'Den Assistenten beantworten',
-        body: 'Zwölf Fragen in normaler Sprache, und der Ausgangspunkt beantwortet die meisten schon. Die URL hält die Auswahl, du kannst den Link also an die Person schicken, die mitentscheidet, bevor irgendetwas läuft.',
+        title: 'Die Fragen beantworten',
+        body: 'Hier, eine nach der anderen. Jede sagt, was sich im Code ändert, wenn du ja oder nein antwortest. Überspringen geht mit „Empfehlung übernehmen“.',
       },
       {
-        title: 'Befehl kopieren',
-        body: 'Die Seite generiert nichts: sie setzt die Zeichenkette zusammen. Das CLI, versioniert zusammen mit dem Template, entscheidet über den Inhalt deines Repositorys — deshalb erzeugt dasselbe Rezept heute und in zwei Jahren dasselbe Projekt.',
+        title: 'Den Befehl kopieren',
+        body: 'Der letzte Bildschirm zeigt einen einzigen Befehl, mit deinen Entscheidungen darin. Dazu ein teilbarer Link, falls du die Konfiguration vorher im Team besprechen willst.',
       },
       {
-        title: 'npx ausführen',
-        body: 'Der Generator kopiert das Template, löscht, was du nicht wolltest, beschneidet das Prisma-Schema, baut die SQL-Baseline, ersetzt den Namen in allen Formen, schreibt die `.env` mit erzeugten Secrets und führt `git init` aus.',
+        title: 'Im Terminal ausführen',
+        body: 'Er lädt den Code, benennt alles auf dein Projekt um — Pakete, Datenbank, Variablen, Container —, startet Postgres und Redis in Docker und befüllt die Datenbank.',
       },
       {
         title: '`pnpm dev`',
-        body: 'Mit laufendem Docker, migrierter Datenbank und angelegtem Admin. Zwei Minuten nach dem `npx` schaust du auf den Login-Screen deines Produkts.',
+        body: 'API auf `:4201`, Web auf `:4200`, E-Mail von Mailpit auf `:4207` abgefangen. Der Login des angelegten Admins steht im README.',
       },
     ],
     renameTitle: 'Das Umbenennen wird bewiesen, nicht durchgesehen',

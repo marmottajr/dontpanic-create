@@ -25,12 +25,12 @@ export const es: Messages = {
     mastheadLabel: 'Don’t Panic',
     title:
       'Las decisiones de seguridad que una IA falla en silencio vienen ya tomadas, documentadas y probadas.',
-    lead: 'DontPanic es un boilerplate SaaS full-stack — NestJS, Next.js, Prisma, Postgres con Row Level Security de verdad. Cada decisión de seguridad ya está tomada, está explicada en el `CLAUDE.md` que tu agente lee antes de escribir la primera línea, y tiene un test que falla cuando alguien la deshace. De paso, el contexto se gasta en tu producto y no en redescubrir cómo se hace la rotación de refresh tokens.',
+    lead: 'Elige lo que tu sistema necesita. Recibe un comando. El código llega con el nombre de tu proyecto en todo —paquetes, base de datos, variables de entorno— y con las decisiones difíciles ya tomadas como toca.',
     nameCta: 'Empezar',
+    ctaNote: 'Diez preguntas en lenguaje llano. Puedes saltarte cualquiera.',
     commandLabel: 'Comando del preset por defecto',
-    commandNote:
-      'Necesita Node 24 y pnpm. Para elegir las partes, responde al asistente: son doce preguntas.',
-    ctaProof: 'Ver los errores que evita',
+    commandNote: 'Necesita Node 24 y pnpm.',
+    ctaProof: 'Ver los cinco errores',
     facts: [
       {
         value: '78.533',
@@ -45,6 +45,12 @@ export const es: Messages = {
         label: 'del npx a `pnpm dev`, con la base de datos migrada y el admin sembrado',
       },
     ],
+  },
+
+  cta: {
+    title: 'Diez preguntas. Un comando al final.',
+    text: 'Una pregunta por pantalla, en lenguaje llano, con lo que cambia en el sistema escrito debajo. Nada de catorce interruptores de golpe.',
+    note: 'sin registro · puedes volver en cualquier paso',
   },
 
   proof: {
@@ -185,7 +191,7 @@ export const es: Messages = {
       },
       files: {
         label: 'Subida de archivos',
-        text: 'Avatar y adjuntos por URL prefirmada, detrás del port de storage: S3, MinIO, R2 o disco local.',
+        text: 'Avatar y adjuntos guardados fuera de la base de datos, detrás del port de storage: S3, MinIO, R2 o disco local, intercambiables con `STORAGE_DRIVER`.',
       },
       platform: {
         label: 'Panel de plataforma',
@@ -262,22 +268,29 @@ export const es: Messages = {
     yes: 'Sí',
     no: 'No',
     edit: 'Editar',
+    whatChangesLabel: 'Qué cambia en tu sistema',
     steps: {
       name: {
         eyebrow: 'Nombre',
         question: '¿Cómo se va a llamar tu sistema?',
         help: 'Puede ser el nombre del producto o el de la empresa. Todo lo demás sale de ahí: la carpeta, el paquete, la base de datos y hasta el usuario que crea Postgres. Las formas derivadas aparecen aquí abajo mientras escribes.',
+        whatChanges:
+          'El nombre entra en 531 sitios, en tres cajas distintas: paquete, scope de pnpm, nombre de base de datos, prefijo de variable de entorno, bucket, y el SQL que crea el rol restringido de Postgres. El CI demuestra que no quedó ninguno: genera con un nombre de prueba y exige cero apariciones del antiguo en un `grep -ri`.',
       },
       preset: {
         eyebrow: 'Punto de partida',
         question: '¿Cuál de estos se parece más a lo que vas a construir?',
         help: 'Esto solo responde las siguientes preguntas por ti. Nada queda fijado: si una respuesta no encaja, cámbiala en su paso o en la revisión del final.',
+        whatChanges:
+          'El punto de partida solo rellena las respuestas siguientes. El CI prueba la matriz de los cuatro íntegra: genera un proyecto de cada uno, instala, comprueba tipos y ejecuta unitarios y e2e. Fuera de ella, la combinación está permitida y no probada — y el CLI lo dice, en una línea.',
       },
       tenancy: {
         eyebrow: 'Empresas',
         question:
           '¿Tu sistema va a atender a varias empresas distintas, cada una viendo solo sus propios datos?',
-        help: 'Es la diferencia entre un producto que vendes a muchos clientes y un sistema que funciona para una sola empresa.',
+        help: 'Es la diferencia entre «el cliente A vio el dato del cliente B» y «la base de datos rechazó la fila antes de que la aplicación se enterara».',
+        whatChanges:
+          "La separación es de Postgres, no de la aplicación: cada petición declara su scope con `SET LOCAL` dentro de la transacción, y las políticas de Row Level Security comparan contra `current_setting('app.current_tenant_id', true)`. Sin scope, la comparación nunca es verdadera: el resultado llega vacío, nunca de la empresa equivocada. Una tabla nueva con `tenantId` se protege sola: `SELECT app.apply_tenant_rls();` al final de la migración.",
         choices: {
           yes: {
             label: 'Sí, varias empresas',
@@ -292,7 +305,9 @@ export const es: Messages = {
       entry: {
         eyebrow: 'Entrada',
         question: '¿Cómo van a conseguir entrar las personas en el sistema?',
-        help: 'Quién puede crear una cuenta es la decisión que más cambia tu producto — y la que peor sale cuando se deja para después.',
+        help: 'Es la diferencia entre despertarte con mil cuentas de prueba y tener que crear a cada persona a mano. Quién puede crear una cuenta es la decisión que más cambia tu producto — y la que peor sale cuando se deja para después.',
+        whatChanges:
+          "La invitación guarda solo el SHA-256 del token: una base de datos filtrada no da un enlace utilizable. Un índice único parcial (`WHERE status = 'PENDING'`) permite como máximo una invitación viva por correo y por empresa, y cierra la carrera de dos admins invitando al mismo compañero en el mismo instante. El correo sale después del commit: dentro de la transacción, un rollback entregaría un enlace válido a una empresa que no existe.",
         choices: {
           open: {
             label: 'Cualquiera puede registrarse',
@@ -311,30 +326,34 @@ export const es: Messages = {
       social: {
         eyebrow: 'Inicio de sesión social',
         question: '¿Quieres el botón de entrar con Google, Apple o GitHub?',
-        help: 'Le ahorra un paso al usuario, y ahorra también la contraseña olvidada. A cambio, cada proveedor necesita una clave que creas en su web.',
+        help: 'Es la diferencia entre una contraseña más que tu usuario puede olvidar y un botón que ya usa en todas partes. A cambio, cada proveedor pide una clave que creas en su sitio.',
+        whatChanges:
+          'La cuenta se reconoce por el `providerAccountId` inmutable, con `@@unique([provider, providerAccountId])` — nunca por el correo, que se recicla cuando alguien se va de la empresa. Una dirección que el proveedor no marcó como verificada no vincula nada: el callback devuelve `unverified_email`. La lista de `OAUTH_PROVIDERS` y la del web tienen que coincidir, o el botón de más da 404; el generador escribe los dos lados.',
         choices: {
           yes: {
-            label: 'Sí',
-            help: 'La cuenta se reconoce por el identificador que da el proveedor, nunca por el correo: las direcciones de trabajo se reciclan, y vincular por correo es como alguien hereda la cuenta de quien se fue de la empresa.',
+            label: 'Sí, quiero el botón',
+            help: 'Google y GitHub activados, Apple disponible. Las claves las creas en la consola de cada uno y las pegas en el `.env`.',
           },
           no: {
-            label: 'No',
-            help: 'Solo correo y contraseña, y el código de los proveedores sale del proyecto: menos cosas que mantener. Para recuperarlo, genera otra vez con el inicio de sesión social activado.',
+            label: 'No, solo correo y contraseña',
+            help: 'El código de los proveedores sale del proyecto: menos cosas que mantener. Para recuperarlo, genera otra vez con el inicio de sesión social activado.',
           },
         },
       },
       twoFactor: {
         eyebrow: 'Segundo factor',
         question: '¿Las personas deben poder exigir un código del móvil para entrar?',
-        help: 'Es el código de seis dígitos de una app como Google Authenticator. Quien lo activa protege la cuenta incluso si se filtra la contraseña.',
+        help: 'Es la diferencia entre «le robaron la contraseña» y «le robaron la contraseña y no entraron». La persona registra una app de autenticación una vez y luego escribe seis dígitos cuando el sistema se lo pide.',
+        whatChanges:
+          'El segundo factor vale en toda puerta de entrada, incluido el inicio de sesión social: el callback no emite sesión, entrega un ticket en la cookie `dp_2fa_ticket` — cinco minutos, quemado tras unos pocos intentos fallidos — y la sesión real solo nace después de los seis dígitos. Vienen códigos de recuperación de un solo uso, y `TWO_FACTOR_REQUIRED=true` pasa a exigir el factor a todo el mundo.',
         choices: {
           yes: {
-            label: 'Sí',
-            help: 'Cada persona lo activa en su propia cuenta, con códigos de respaldo por si pierde el móvil. El inicio de sesión social lo respeta: con el segundo factor activado, entrar con Google no se salta el paso.',
+            label: 'Sí, quiero segundo factor',
+            help: 'Cada persona lo activa en su propia cuenta, con códigos de recuperación por si pierde el móvil. Para exigirlo a todo el mundo, el proyecto ya trae `TWO_FACTOR_REQUIRED`.',
           },
           no: {
-            label: 'No',
-            help: 'Entrar es solo contraseña. Se van el código, la pantalla de configuración y los códigos de respaldo.',
+            label: 'Ahora no',
+            help: 'Entrar es solo contraseña. Se puede activar después — pero generando el proyecto de nuevo, porque responder no aquí elimina el código del segundo factor.',
           },
         },
       },
@@ -342,6 +361,8 @@ export const es: Messages = {
         eyebrow: 'Idiomas',
         question: '¿El sistema va a hablar más de un idioma?',
         help: 'Esto es sobre el producto que vas a generar, no sobre esta página.',
+        whatChanges:
+          'Cada idioma es un archivo de mensajes en ambos lados, API y web. Un test compara el conjunto de claves entre ellos y falla cuando falta una — que es exactamente como una pantalla aparece en inglés en medio del español, en producción.',
         choices: {
           one: {
             label: 'Un idioma',
@@ -356,14 +377,16 @@ export const es: Messages = {
       plans: {
         eyebrow: 'Planes',
         question: '¿Vas a vender planes con límite, del tipo «hasta 10 usuarios»?',
-        help: 'Es lo que separa un plan básico de uno avanzado dentro del propio sistema.',
+        help: 'Es la diferencia entre cobrar por plan y confiar en que nadie abuse. Es lo que separa un plan básico de uno avanzado dentro del propio sistema.',
+        whatChanges:
+          'El límite se comprueba en el momento que consume la plaza — la aceptación de la invitación —, dentro de la misma transacción que crea el usuario, con `pg_advisory_xact_lock` por empresa y por recurso. Contar antes de escribir no bloquea nada: dos aceptaciones en el mismo segundo pasarían del techo.',
         choices: {
           yes: {
-            label: 'Sí',
-            help: 'Cada empresa recibe un límite de personas y contadores por recurso. El límite se comprueba en el momento de escribir, con bloqueo en la base de datos: dos invitaciones aceptadas en el mismo segundo no pasan del techo.',
+            label: 'Sí, voy a vender planes',
+            help: 'Cada empresa recibe un límite de personas y contadores por recurso, con las pantallas de uso y de cambio de plan.',
           },
           no: {
-            label: 'No',
+            label: 'No, todos iguales',
             help: 'Sin límites y sin contadores. A nadie se le corta por tamaño.',
           },
         },
@@ -372,13 +395,15 @@ export const es: Messages = {
         eyebrow: 'Archivos',
         question: '¿Las personas van a subir archivos: foto de perfil, adjuntos, documentos?',
         help: 'Cambia dónde se guardan los archivos y cómo llegan al navegador.',
+        whatChanges:
+          'El archivo sube por la API y va al almacenamiento por el port `StorageProvider`, que tiene tres operaciones: `putObject`, `deleteObject` y `getPublicUrl`. Cambiar S3 por MinIO, R2 o disco local es cambiar `STORAGE_DRIVER` en el `.env` — la lógica no sabe cuál está detrás.',
         choices: {
           yes: {
-            label: 'Sí',
-            help: 'La subida va directa al almacenamiento, por un enlace firmado. Funciona con Amazon S3, MinIO, Cloudflare R2 o el disco de la máquina, y cambiar entre ellos es una línea de configuración.',
+            label: 'Sí, van a subir archivos',
+            help: 'Avatar y adjuntos guardados fuera de la base de datos. Funciona con Amazon S3, MinIO, Cloudflare R2 o el disco de la máquina, y cambiar entre ellos es una línea de configuración.',
           },
           no: {
-            label: 'No',
+            label: 'No hace falta',
             help: 'Sin subida de archivos y sin foto de perfil. Menos código, y ningún bucket que configurar.',
           },
         },
@@ -386,14 +411,16 @@ export const es: Messages = {
       captcha: {
         eyebrow: 'Robots',
         question: '¿Las pantallas públicas necesitan protección contra robots?',
-        help: 'Vale para registro, login y recuperación de contraseña — las pantallas que un robot intenta al por mayor.',
+        help: 'Es la diferencia entre un robot probando mil contraseñas por minuto y que se pare en el primer rompecabezas. Vale para registro, login y recuperación de contraseña.',
+        whatChanges:
+          'El captcha entra en las rutas marcadas con `@RequireCaptcha`: registro, login, reenvío de verificación y recuperación de contraseña. `CAPTCHA_DRIVER` y `NEXT_PUBLIC_CAPTCHA_DRIVER` tienen que coincidir, o cada envío se convierte en un 400 por un token que la pantalla nunca tuvo forma de obtener — el generador escribe los dos. Un proveedor caído responde 503, no «que pase todo el mundo»: `CAPTCHA_FAIL_OPEN=false` es el valor por defecto.',
         choices: {
           yes: {
-            label: 'Sí',
-            help: 'Viene con Cloudflare Turnstile, y reCAPTCHA de Google como alternativa. Si el proveedor se cae, el sistema rechaza en vez de dejar pasar a todos — lo contrario es como un formulario se queda abierto sin que nadie lo note.',
+            label: 'Sí, quiero protección',
+            help: 'Viene con Cloudflare Turnstile, y reCAPTCHA de Google como alternativa. Las claves las creas en el proveedor.',
           },
           no: {
-            label: 'No',
+            label: 'Ahora no',
             help: 'Sin rompecabezas en pantalla. El límite de intentos por dirección de red sigue valiendo, así que no es «sin protección»: es sin esa capa.',
           },
         },
@@ -412,24 +439,23 @@ export const es: Messages = {
   },
 
   how: {
-    title: 'Cómo funciona',
-    lead: 'Cuatro pasos, y solo el tercero tarda algo.',
+    title: 'Cuatro pasos, y el cuarto es `pnpm dev`.',
     steps: [
       {
-        title: 'Responde al asistente',
-        body: 'Doce preguntas en lenguaje llano, y el punto de partida ya responde la mayoría. La URL guarda la elección, así que puedes mandar el enlace a quien decide contigo antes de ejecutar nada.',
+        title: 'Responde las preguntas',
+        body: 'Aquí mismo, una por una. Cada una dice qué cambia en el código si respondes sí o no. Puedes saltártelas con «usar el recomendado».',
       },
       {
         title: 'Copia el comando',
-        body: 'La página no genera nada: compone la cadena. Es el CLI, versionado junto con la plantilla, el que decide el contenido de tu repositorio — por eso la misma receta produce el mismo proyecto hoy y dentro de dos años.',
+        body: 'La última pantalla muestra un solo comando, con tus decisiones dentro. Hay enlace compartible, por si quieres discutir la configuración con el equipo antes.',
       },
       {
-        title: 'Ejecuta el npx',
-        body: 'El generador copia la plantilla, borra lo que no pediste, poda el schema de Prisma, compone la baseline de SQL, cambia el nombre en todas sus formas, escribe el `.env` con secretos generados y ejecuta `git init`.',
+        title: 'Ejecútalo en la terminal',
+        body: 'Baja el código, renombra todo a tu proyecto —paquetes, base de datos, variables, contenedores—, levanta Postgres y Redis en Docker y siembra la base de datos.',
       },
       {
         title: '`pnpm dev`',
-        body: 'Con Docker en marcha, la base de datos migrada y el admin sembrado. Dos minutos después del `npx` estás mirando la pantalla de login de tu producto.',
+        body: 'API en `:4201`, web en `:4200`, correo capturado por Mailpit en `:4207`. El acceso del admin sembrado está en el README.',
       },
     ],
     renameTitle: 'El rename se demuestra, no se revisa',

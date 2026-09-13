@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { WizardModal } from './wizard-modal';
+import { WIZARD_TERMS } from '@/content/wizard-terms';
+import { de } from '@/i18n/messages/de';
 import { ptBR } from '@/i18n/messages/pt-BR';
 import { ConfiguratorProvider, useConfiguratorContext } from '@/lib/configurator-context';
 import { buildCommand, DEFAULT_PRESET, presetRecipe, toFlags } from '@/lib/recipe-bridge';
@@ -71,8 +73,44 @@ describe('assistente', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(question()).toBe(w.steps.name.question);
     expect(
-      screen.getByText(w.progress.replace('{n}', '1').replace('{total}', '12')),
+      screen.getByText(w.progress.replace('{n}', '01').replace('{total}', '12')),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * O termo oficial ao lado do rótulo: quem já sabe o que é TOTP reconhece o passo em
+   * meio segundo, e quem não sabe termina o assistente tendo aprendido o nome.
+   */
+  it('mostra o nome oficial do recurso ao lado do rótulo', async () => {
+    const { user } = await setup();
+    await advance(user, 5);
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(w.steps.twoFactor.eyebrow)).toBeInTheDocument();
+    expect(within(dialog).getByText(WIZARD_TERMS.twoFactor as string)).toBeInTheDocument();
+  });
+
+  /**
+   * O termo é idêntico nos sete idiomas — é o que a pessoa vai procurar depois no
+   * `CLAUDE.md` do projeto gerado. O rótulo ao lado dele é que traduz.
+   */
+  it('não traduz o termo, mas traduz o rótulo', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConfiguratorProvider>
+        <Opener />
+        <WizardModal messages={de} />
+      </ConfiguratorProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: w.open }));
+    for (let i = 0; i < 5; i += 1) {
+      await user.click(screen.getByRole('button', { name: de.wizard.next }));
+    }
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(de.wizard.steps.twoFactor.eyebrow)).toBeInTheDocument();
+    expect(de.wizard.steps.twoFactor.eyebrow).not.toBe(w.steps.twoFactor.eyebrow);
+    expect(within(dialog).getByText(WIZARD_TERMS.twoFactor as string)).toBeInTheDocument();
   });
 
   it('nomeia o diálogo pela pergunta do passo', async () => {

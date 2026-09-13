@@ -1,3 +1,4 @@
+import { CtaSection } from '@/components/cta-section';
 import { FaqSection } from '@/components/faq-section';
 import { Hero } from '@/components/hero';
 import { HowSection } from '@/components/how-section';
@@ -41,6 +42,7 @@ export default async function LandingPage({
       <main id="content">
         <Hero messages={messages} />
         <ProofSection messages={messages} />
+        <CtaSection messages={messages} />
         <HowSection messages={messages} />
         <InsideSection messages={messages} />
         <FaqSection messages={messages} />

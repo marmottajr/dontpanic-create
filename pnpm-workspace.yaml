@@ -2,5 +2,20 @@ packages:
   - packages/*
   - apps/*
 
+# Scripts de build nativos, aprovados um a um.
+#
+# Os dois baixam um binário de plataforma no postinstall, que é exactamente o vetor do
+# GHSA-gv7w-rqvm-qjhr (falta de verificação de integridade → RCE via
+# `NPM_CONFIG_REGISTRY`). O que fecha esse buraco é a versão, não bloquear o script: o
+# `esbuild` está preso em `>=0.28.1` por override, onde a verificação existe.
+#
+# `workerd` vem do `wrangler`, que entrou com a publicação em Cloudflare Workers
+# (3f6cd0f). Ele só é necessário para `wrangler dev` local — o `next build` e o export
+# estático não o tocam —, então fica desligado até alguém precisar rodar o runtime na
+# própria máquina.
+allowBuilds:
+  esbuild: true
+  workerd: false
+
 # Mesma disciplina de supply-chain do dontpanic: nada recém-publicado.
 minimumReleaseAge: 1440

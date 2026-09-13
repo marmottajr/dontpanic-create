@@ -30,18 +30,18 @@
 
   "observability": {
     "enabled": true
-  }
+  },
 
-  // O domínio `getdontpanic.com` é ligado como Custom Domain.
+  // A zona `getdontpanic.com` está ativa na conta (verificado pela API), então as rotas
+  // entram aqui: o `wrangler deploy` liga o Custom Domain e emite o certificado sozinho,
+  // sem ninguém precisar clicar no painel. Fica versionado junto com o resto — quem lê o
+  // repositório descobre onde o site mora sem abrir o Cloudflare.
   //
-  // Deixado fora do arquivo de propósito: a rota só existe depois que a zona está ativa
-  // na conta, e um `routes` apontando para zona inexistente faz `wrangler deploy` falhar
-  // com um erro sobre zona — que não é o que a pessoa está tentando fazer no primeiro
-  // deploy. Ligue pelo painel (Workers › dontpanic-site › Settings › Domains & Routes) ou
-  // descomente depois que a zona existir:
-  //
-  // "routes": [
-  //   { "pattern": "getdontpanic.com", "custom_domain": true },
-  //   { "pattern": "www.getdontpanic.com", "custom_domain": true }
-  // ]
+  // `www` também, porque um visitante que digita `www.` merece chegar em vez de ver erro
+  // de DNS. O redirecionamento de um para o outro é uma regra de redirect na zona, não
+  // trabalho do Worker.
+  "routes": [
+    { "pattern": "getdontpanic.com", "custom_domain": true },
+    { "pattern": "www.getdontpanic.com", "custom_domain": true }
+  ]
 }

@@ -36,7 +36,8 @@ export function Section({
 }: {
   id: string;
   eyebrow?: string;
-  title: string;
+  /** `ReactNode` e não `string`: alguns títulos carregam código em mono. */
+  title: ReactNode;
   lead?: ReactNode;
   children?: ReactNode;
   className?: string;

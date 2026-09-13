@@ -15,3 +15,4 @@ packages/cli/template/
 
 # Saída dos testes de conformidade
 .conformance/
+DontPanic design system/

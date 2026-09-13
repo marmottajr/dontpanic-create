@@ -121,6 +121,16 @@ export interface Messages {
     mastheadLabel: string;
     title: string;
     lead: string;
+    /**
+     * A frase que diz o que o DontPanic **não** é.
+     *
+     * Existe porque a página falhou nisso: um leitor não-técnico leu o `title`, viu
+     * "IA", "erro" e "segurança", viu a seção "A prova" listando cinco defeitos, e
+     * concluiu que isto era um analisador — "eu tenho um app e uso a ferramenta para
+     * descobrir o que está errado nele". Descrever só o que a coisa é não desfaz uma
+     * categoria errada já formada; o negativo explícito desfaz.
+     */
+    notThis: string;
     nameCta: string;
     /** Convida: o que esperar do assistente. Fica sob os botões. */
     ctaNote: string;

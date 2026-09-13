@@ -4,7 +4,7 @@ export const en: Messages = {
   meta: {
     title: 'DontPanic — the SaaS boilerplate where the security decisions are already made',
     description:
-      'Generate a full-stack SaaS on NestJS and Next.js with multi-tenancy enforced by Row Level Security, 2FA, invitations and social login. The decisions an AI gets silently wrong are already made, documented and tested.',
+      'Generate a new project — a full-stack SaaS in NestJS and Next.js, from scratch — with multi-tenancy by Row Level Security, 2FA, invitations and social login. The decisions an AI gets silently wrong are already made, documented and tested.',
   },
 
   nav: {
@@ -24,13 +24,15 @@ export const en: Messages = {
   hero: {
     mastheadLabel: 'Don’t Panic',
     title:
-      'The security decisions an AI gets silently wrong are already made, documented and tested.',
-    lead: 'Pick what your system needs. Get one command. The code arrives with your project’s name in everything — packages, database, environment variables — and with the hard choices already made the right way.',
+      'Start a new SaaS with the security decisions already made — the ones an AI gets silently wrong.',
+    lead: 'You answer ten questions, copy one command and get **a brand-new repository**: empty of your product and full of everything else — login, 2FA, invitations, companies isolated inside the database, a job queue and tests. With your project’s name in everything: packages, database, environment variables.',
+    notThis:
+      'It is not a scanner: DontPanic **never looks at code you already have**. It is the starting point of a project built from scratch.',
     nameCta: 'Start',
     ctaNote: 'Ten questions in plain language. You can skip any of them.',
     commandLabel: 'Command for the default preset',
     commandNote: 'Needs Node 24 and pnpm.',
-    ctaProof: 'See the five mistakes',
+    ctaProof: 'See the five decisions',
     facts: [
       {
         value: '78,533',
@@ -48,9 +50,9 @@ export const en: Messages = {
   },
 
   proof: {
-    eyebrow: 'Mistakes that pass review',
+    eyebrow: 'Five mistakes, already decided here',
     title: 'The proof',
-    lead: 'None of this is hypothetical. These are mistakes that produce code which compiles, passes the tests and passes code review — and shows up months later, in a user who is not you. Each one is already decided in the boilerplate, with the reasoning beside the decision and the test named underneath.',
+    lead: 'None of this is hypothetical. These are mistakes that produce code which compiles, passes the tests and passes code review — and shows up months later, in a user who is not you. We are not the ones who will find them in your code: **each one is already decided in the code you receive**, with the reasoning beside the decision and the test named underneath.',
     labels: {
       whatHappens: 'What happens',
       ours: 'In DontPanic',
@@ -519,6 +521,10 @@ export const en: Messages = {
     title: 'Questions',
     lead: 'The ones worth an honest answer before you run the command.',
     items: [
+      {
+        q: 'Does this analyse the app I already have?',
+        a: 'No. DontPanic does not read, audit or fix existing code — it **generates a new project**, from scratch, with these decisions already made inside it. If your app is already running, what is useful here is the reading: generate a sample project and compare it with yours, or go through “The proof” and check, in your own code, whether each of the five cases is handled. The command never touches anything you have written.',
+      },
       {
         q: 'What exactly is tested?',
         a: 'The preset matrix, in full: CI generates a project from each preset, demands zero occurrences of the old name, and runs install, typecheck, unit and e2e. Plus all-on, all-off, and each feature turned off individually on top of the SaaS preset. Fourteen boolean features are 16,384 combinations, and CI does not test 16,384 projects: combinations outside that matrix are allowed and untested — and the CLI says so, in one line, without drama. A boilerplate that promises guarantees it does not verify is worse than one that states the limit.',

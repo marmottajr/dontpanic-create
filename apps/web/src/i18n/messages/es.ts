@@ -4,7 +4,7 @@ export const es: Messages = {
   meta: {
     title: 'DontPanic — el boilerplate SaaS con las decisiones de seguridad ya tomadas',
     description:
-      'Genera un SaaS full-stack en NestJS y Next.js con multi-tenancy garantizado por Row Level Security, 2FA, invitaciones e inicio de sesión social. Las decisiones que una IA falla en silencio vienen ya tomadas, documentadas y probadas.',
+      'Genera un proyecto nuevo —un SaaS full-stack en NestJS y Next.js, desde cero— con multi-tenancy por Row Level Security, 2FA, invitaciones y login social. Las decisiones que una IA falla en silencio vienen ya tomadas, documentadas y probadas.',
   },
 
   nav: {
@@ -24,13 +24,15 @@ export const es: Messages = {
   hero: {
     mastheadLabel: 'Don’t Panic',
     title:
-      'Las decisiones de seguridad que una IA falla en silencio vienen ya tomadas, documentadas y probadas.',
-    lead: 'Elige lo que tu sistema necesita. Recibe un comando. El código llega con el nombre de tu proyecto en todo —paquetes, base de datos, variables de entorno— y con las decisiones difíciles ya tomadas como toca.',
+      'Empieza un SaaS nuevo con las decisiones de seguridad ya tomadas: las que una IA falla en silencio.',
+    lead: 'Respondes diez preguntas, copias un comando y recibes **un repositorio nuevo**: vacío de tu producto y lleno de todo lo demás — login, 2FA, invitaciones, empresas aisladas dentro de la base de datos, cola de trabajos y tests. Con el nombre de tu proyecto en todo: paquetes, base de datos, variables de entorno.',
+    notThis:
+      'No es un analizador: DontPanic **no mira el código que ya tienes**. Es el punto de partida de un proyecto desde cero.',
     nameCta: 'Empezar',
     ctaNote: 'Diez preguntas en lenguaje llano. Puedes saltarte cualquiera.',
     commandLabel: 'Comando del preset por defecto',
     commandNote: 'Necesita Node 24 y pnpm.',
-    ctaProof: 'Ver los cinco errores',
+    ctaProof: 'Ver las cinco decisiones',
     facts: [
       {
         value: '78.533',
@@ -54,9 +56,9 @@ export const es: Messages = {
   },
 
   proof: {
-    eyebrow: 'Errores que pasan el review',
+    eyebrow: 'Cinco errores, ya decididos aquí',
     title: 'La prueba',
-    lead: 'Nada de esto es hipotético. Son errores que producen código que compila, pasa los tests y pasa el code review — y que aparece meses después, en un usuario que no eres tú. Cada uno está ya decidido en el boilerplate, con el motivo al lado de la decisión y el test nombrado debajo.',
+    lead: 'Nada de esto es hipotético. Son errores que producen código que compila, pasa los tests y pasa el code review — y que aparece meses después, en un usuario que no eres tú. No vamos a ser nosotros quienes los encuentren en tu código: **cada uno ya está decidido en el código que recibes**, con el motivo al lado de la decisión y el test nombrado debajo.',
     labels: {
       whatHappens: 'Qué ocurre',
       ours: 'En DontPanic',
@@ -532,6 +534,10 @@ export const es: Messages = {
     title: 'Preguntas',
     lead: 'Las que merecen una respuesta honesta antes de ejecutar el comando.',
     items: [
+      {
+        q: '¿Esto analiza la app que ya tengo?',
+        a: 'No. DontPanic no lee, no audita ni corrige código existente: **genera un proyecto nuevo**, desde cero, con esas decisiones ya tomadas dentro. Si tu app ya está en pie, lo aprovechable aquí es la lectura: genera un proyecto de ejemplo y compáralo con el tuyo, o repasa «La prueba» y comprueba, en tu propio código, si cada uno de los cinco casos está resuelto. El comando no toca nada de lo que ya has escrito.',
+      },
       {
         q: '¿Qué se prueba exactamente?',
         a: 'La matriz de presets, íntegra: el CI genera un proyecto de cada preset, exige cero apariciones del nombre antiguo y ejecuta install, typecheck, unitarios y e2e. Más all-on, all-off y cada feature desactivada de forma aislada sobre el preset SaaS. Catorce features booleanas son 16.384 combinaciones, y el CI no prueba 16.384 proyectos: las combinaciones fuera de esa matriz están permitidas y no probadas — y el CLI lo dice, en una línea, sin dramatismo. Un boilerplate que promete garantías que no verifica es peor que uno que declara el límite.',

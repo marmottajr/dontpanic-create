@@ -20,7 +20,7 @@ export const ptBR: Messages = {
   meta: {
     title: 'DontPanic — o boilerplate SaaS com as decisões de segurança já tomadas',
     description:
-      'Gere um SaaS full-stack em NestJS e Next.js com multi-tenancy por Row Level Security, 2FA, convites e login social. As decisões que uma IA erra em silêncio já vêm tomadas, documentadas e testadas.',
+      'Gere um projeto novo — um SaaS full-stack em NestJS e Next.js, do zero — com multi-tenancy por Row Level Security, 2FA, convites e login social. As decisões que uma IA erra em silêncio já vêm tomadas, documentadas e testadas.',
   },
 
   nav: {
@@ -40,13 +40,15 @@ export const ptBR: Messages = {
   hero: {
     mastheadLabel: 'Don’t Panic',
     title:
-      'As decisões de segurança que uma IA erra em silêncio já vêm tomadas, documentadas e testadas.',
-    lead: 'Escolha o que o seu sistema precisa. Receba um comando. O código chega com o nome do seu projeto em tudo — pacotes, banco, variáveis de ambiente — e com as escolhas difíceis já feitas do jeito certo.',
+      'Comece um SaaS novo com as decisões de segurança já tomadas — as que uma IA erra em silêncio.',
+    lead: 'Você responde dez perguntas, copia um comando e recebe **um repositório novo**: vazio do seu produto e cheio do resto — login, 2FA, convites, empresas isoladas dentro do banco, fila de jobs e testes. Com o nome do seu projeto em tudo: pacotes, banco, variáveis de ambiente.',
+    notThis:
+      'Não é um analisador: o DontPanic **não olha o código que você já tem**. Ele é o ponto de partida de um projeto do zero.',
     nameCta: 'Começar',
     ctaNote: 'Dez perguntas em linguagem de gente. Dá para pular qualquer uma.',
     commandLabel: 'Comando do preset padrão',
     commandNote: 'Precisa de Node 24 e pnpm.',
-    ctaProof: 'Ver os cinco erros',
+    ctaProof: 'Ver as cinco decisões',
     facts: [
       {
         value: '78.533',
@@ -64,9 +66,9 @@ export const ptBR: Messages = {
   },
 
   proof: {
-    eyebrow: 'Erros que passam no review',
+    eyebrow: 'Cinco erros, já decididos aqui',
     title: 'A prova',
-    lead: 'Nada aqui é hipotético. São erros que produzem código que compila, passa no teste e passa no code review — e que aparecem meses depois, num usuário que não é você. Cada um está decidido no boilerplate, com o motivo ao lado da decisão e o teste nomeado embaixo.',
+    lead: 'Nada aqui é hipotético. São erros que produzem código que compila, passa no teste e passa no code review — e que aparecem meses depois, num usuário que não é você. Não somos nós que vamos encontrá-los no seu código: **cada um já está decidido no código que você recebe**, com o motivo ao lado da decisão e o teste nomeado embaixo.',
     labels: {
       whatHappens: 'O que acontece',
       ours: 'No DontPanic',
@@ -535,6 +537,10 @@ export const ptBR: Messages = {
     title: 'Perguntas',
     lead: 'As que valem uma resposta honesta antes de você rodar o comando.',
     items: [
+      {
+        q: 'Isto analisa o app que eu já tenho?',
+        a: 'Não. O DontPanic não lê, não audita e não corrige código existente — ele **gera um projeto novo**, do zero, com essas decisões já tomadas dentro. Se o seu app já está de pé, o que dá para aproveitar aqui é a leitura: gere um projeto de exemplo e compare com o seu, ou percorra “A prova” e confira, no seu próprio código, se cada um dos cinco casos está resolvido. O comando não toca em nada que você já escreveu.',
+      },
       {
         q: 'O que exatamente é testado?',
         a: 'A matriz de presets, integralmente: o CI gera um projeto de cada preset, exige zero ocorrência do nome antigo e roda install, typecheck, unit e e2e. Mais all-on, all-off e cada feature desligada isoladamente sobre o preset SaaS. Quatorze features booleanas são 16.384 combinações, e o CI não testa 16.384 projetos: combinações fora dessa matriz são permitidas e não testadas — e o CLI diz isso, numa linha, sem drama. Um boilerplate que promete garantia que não verifica é pior que um que declara o limite.',

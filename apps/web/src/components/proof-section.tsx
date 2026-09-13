@@ -25,7 +25,12 @@ export function ProofSection({ messages }: { messages: Messages }): React.ReactE
   const copyById = new Map(proof.items.map((item) => [item.id, item]));
 
   return (
-    <Section id="proof" eyebrow={proof.eyebrow} title={proof.title} lead={proof.lead}>
+    <Section
+      id="proof"
+      eyebrow={proof.eyebrow}
+      title={proof.title}
+      lead={<RichText>{proof.lead}</RichText>}
+    >
       <div className="space-y-14 sm:space-y-16">
         {PROOF_ORDER.map((id, position) => {
           const artifact = PROOF_ARTIFACTS[id];

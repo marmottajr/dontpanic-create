@@ -4,7 +4,7 @@ export const it: Messages = {
   meta: {
     title: 'DontPanic — il boilerplate SaaS con le decisioni di sicurezza già prese',
     description:
-      'Genera un SaaS full-stack in NestJS e Next.js con multi-tenancy garantito da Row Level Security, 2FA, inviti e login social. Le decisioni che una IA sbaglia in silenzio sono già prese, documentate e testate.',
+      'Genera un progetto nuovo — un SaaS full-stack in NestJS e Next.js, da zero — con multi-tenancy tramite Row Level Security, 2FA, inviti e login social. Le decisioni che una IA sbaglia in silenzio sono già prese, documentate e testate.',
   },
 
   nav: {
@@ -24,13 +24,15 @@ export const it: Messages = {
   hero: {
     mastheadLabel: 'Don’t Panic',
     title:
-      'Le decisioni di sicurezza che una IA sbaglia in silenzio sono già prese, documentate e testate.',
-    lead: 'Scegli ciò di cui il tuo sistema ha bisogno. Ricevi un comando. Il codice arriva con il nome del tuo progetto ovunque — pacchetti, database, variabili d’ambiente — e con le scelte difficili già fatte come si deve.',
+      'Comincia un SaaS nuovo con le decisioni di sicurezza già prese — quelle che una IA sbaglia in silenzio.',
+    lead: 'Rispondi a dieci domande, copi un comando e ricevi **un repository nuovo**: vuoto del tuo prodotto e pieno di tutto il resto — login, 2FA, inviti, aziende isolate dentro il database, coda di job e test. Con il nome del tuo progetto ovunque: pacchetti, database, variabili d’ambiente.',
+    notThis:
+      'Non è un analizzatore: DontPanic **non guarda il codice che hai già**. È il punto di partenza di un progetto da zero.',
     nameCta: 'Inizia',
     ctaNote: 'Dieci domande in lingua corrente. Puoi saltarne qualunque.',
     commandLabel: 'Comando del preset predefinito',
     commandNote: 'Servono Node 24 e pnpm.',
-    ctaProof: 'Vedere i cinque errori',
+    ctaProof: 'Vedere le cinque decisioni',
     facts: [
       {
         value: '78.533',
@@ -54,9 +56,9 @@ export const it: Messages = {
   },
 
   proof: {
-    eyebrow: 'Errori che passano la review',
+    eyebrow: 'Cinque errori, già decisi qui',
     title: 'La prova',
-    lead: 'Niente di tutto questo è ipotetico. Sono errori che producono codice che compila, passa i test e passa la code review — e che salta fuori mesi dopo, su un utente che non sei tu. Ognuno è già deciso nel boilerplate, con la ragione accanto alla decisione e il test nominato sotto.',
+    lead: 'Niente di tutto questo è ipotetico. Sono errori che producono codice che compila, passa i test e passa la code review — e che salta fuori mesi dopo, su un utente che non sei tu. Non siamo noi a trovarli nel tuo codice: **ognuno è già deciso nel codice che ricevi**, con la ragione accanto alla decisione e il test nominato sotto.',
     labels: {
       whatHappens: 'Cosa succede',
       ours: 'In DontPanic',
@@ -523,6 +525,10 @@ export const it: Messages = {
     title: 'Domande',
     lead: 'Quelle che meritano una risposta onesta prima di eseguire il comando.',
     items: [
+      {
+        q: 'Questo analizza l’app che ho già?',
+        a: 'No. DontPanic non legge, non controlla e non corregge codice esistente: **genera un progetto nuovo**, da zero, con queste decisioni già prese dentro. Se la tua app è già in piedi, qui serve la lettura: genera un progetto di esempio e confrontalo con il tuo, oppure ripassa «La prova» e verifica, nel tuo codice, se ognuno dei cinque casi è risolto. Il comando non tocca nulla di ciò che hai scritto.',
+      },
       {
         q: 'Cosa viene testato, esattamente?',
         a: 'La matrice dei preset, per intero: la CI genera un progetto per ogni preset, pretende zero occorrenze del nome vecchio ed esegue install, typecheck, unitari ed e2e. Più all-on, all-off e ogni feature spenta singolarmente sopra il preset SaaS. Quattordici feature booleane sono 16.384 combinazioni, e la CI non testa 16.384 progetti: le combinazioni fuori da quella matrice sono permesse e non testate — e il CLI lo dice, in una riga, senza drammi. Un boilerplate che promette garanzie che non verifica è peggio di uno che dichiara il limite.',

@@ -13,7 +13,7 @@ export const ptPT: Messages = {
   meta: {
     title: 'DontPanic — o boilerplate SaaS com as decisões de segurança já tomadas',
     description:
-      'Gere um SaaS full-stack em NestJS e Next.js com multi-tenancy por Row Level Security, 2FA, convites e início de sessão social. As decisões que uma IA erra em silêncio já vêm tomadas, documentadas e testadas.',
+      'Gere um projecto novo — um SaaS full-stack em NestJS e Next.js, de raiz — com multi-tenancy por Row Level Security, 2FA, convites e login social. As decisões que uma IA erra em silêncio vêm já tomadas, documentadas e testadas.',
   },
 
   nav: {
@@ -33,13 +33,15 @@ export const ptPT: Messages = {
   hero: {
     mastheadLabel: 'Don’t Panic',
     title:
-      'As decisões de segurança que uma IA erra em silêncio vêm já tomadas, documentadas e testadas.',
-    lead: 'Escolha o que o seu sistema precisa. Receba um comando. O código chega com o nome do seu projecto em tudo — pacotes, base de dados, variáveis de ambiente — e com as escolhas difíceis já feitas como deve ser.',
+      'Comece um SaaS novo com as decisões de segurança já tomadas — as que uma IA erra em silêncio.',
+    lead: 'Responde a dez perguntas, copia um comando e recebe **um repositório novo**: vazio do seu produto e cheio do resto — login, 2FA, convites, empresas isoladas dentro da base de dados, fila de trabalhos e testes. Com o nome do seu projecto em tudo: pacotes, base de dados, variáveis de ambiente.',
+    notThis:
+      'Não é um analisador: o DontPanic **não olha para o código que já tem**. É o ponto de partida de um projecto de raiz.',
     nameCta: 'Começar',
     ctaNote: 'Dez perguntas em linguagem corrente. Pode saltar qualquer uma.',
     commandLabel: 'Comando da predefinição padrão',
     commandNote: 'Precisa de Node 24 e pnpm.',
-    ctaProof: 'Ver os cinco erros',
+    ctaProof: 'Ver as cinco decisões',
     facts: [
       {
         value: '78 533',
@@ -63,9 +65,9 @@ export const ptPT: Messages = {
   },
 
   proof: {
-    eyebrow: 'Erros que passam no review',
+    eyebrow: 'Cinco erros, já decididos aqui',
     title: 'A prova',
-    lead: 'Nada aqui é hipotético. São erros que produzem código que compila, passa no teste e passa no code review — e que aparecem meses depois, num utilizador que não é você. Cada um está decidido no boilerplate, com o motivo ao lado da decisão e o teste nomeado em baixo.',
+    lead: 'Nada aqui é hipotético. São erros que produzem código que compila, passa no teste e passa no code review — e que aparecem meses depois, num utilizador que não é você. Não somos nós que os vamos encontrar no seu código: **cada um já está decidido no código que recebe**, com o motivo ao lado da decisão e o teste nomeado em baixo.',
     labels: {
       whatHappens: 'O que acontece',
       ours: 'No DontPanic',
@@ -534,6 +536,10 @@ export const ptPT: Messages = {
     title: 'Perguntas',
     lead: 'As que merecem uma resposta honesta antes de correr o comando.',
     items: [
+      {
+        q: 'Isto analisa a aplicação que já tenho?',
+        a: 'Não. O DontPanic não lê, não audita nem corrige código existente — **gera um projecto novo**, de raiz, com essas decisões já tomadas lá dentro. Se a sua aplicação já está de pé, o que se aproveita aqui é a leitura: gere um projecto de exemplo e compare com o seu, ou percorra «A prova» e confirme, no seu próprio código, se cada um dos cinco casos está resolvido. O comando não toca em nada do que já escreveu.',
+      },
       {
         q: 'O que é testado, exactamente?',
         a: 'A matriz de predefinições, na íntegra: o CI gera um projecto de cada predefinição, exige zero ocorrências do nome antigo e corre install, typecheck, unitários e e2e. Mais all-on, all-off e cada feature desactivada isoladamente sobre a predefinição SaaS. Catorze features booleanas são 16 384 combinações, e o CI não testa 16 384 projectos: combinações fora dessa matriz são permitidas e não testadas — e o CLI di-lo, numa linha, sem drama. Um boilerplate que promete garantias que não verifica é pior que um que declara o limite.',

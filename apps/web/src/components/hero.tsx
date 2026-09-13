@@ -53,6 +53,14 @@ export function Hero({ messages }: { messages: Messages }): React.ReactElement {
               <RichText>{hero.lead}</RichText>
             </p>
 
+            {/* O que isto não é. Fica aqui, e não na FAQ, porque a categoria errada se
+                forma no primeiro parágrafo — quem já concluiu "é um analisador" não
+                rola até a FAQ para descobrir que não é. A barra à esquerda o separa do
+                lead sem competir com ele em peso. */}
+            <p className="measure mt-4 border-l-2 border-rule pl-3.5 text-small text-dim">
+              <RichText>{hero.notThis}</RichText>
+            </p>
+
             {/* O campo de nome aqui não é um segundo configurador: é a primeira
                 pergunta do assistente, adiantada. Quem digita e clica entra no modal
                 já no passo 2, com o nome no lugar. */}

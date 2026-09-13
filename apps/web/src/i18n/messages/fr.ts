@@ -4,7 +4,7 @@ export const fr: Messages = {
   meta: {
     title: 'DontPanic — le boilerplate SaaS où les décisions de sécurité sont déjà prises',
     description:
-      'Générez un SaaS full-stack en NestJS et Next.js avec un multi-tenancy garanti par Row Level Security, 2FA, invitations et connexion sociale. Les décisions qu’une IA rate en silence sont déjà prises, documentées et testées.',
+      'Générez un projet neuf — un SaaS full-stack en NestJS et Next.js, parti de zéro — avec multi-tenancy par Row Level Security, 2FA, invitations et connexion sociale. Les décisions qu’une IA rate en silence sont déjà prises, documentées et testées.',
   },
 
   nav: {
@@ -24,13 +24,15 @@ export const fr: Messages = {
   hero: {
     mastheadLabel: 'Don’t Panic',
     title:
-      'Les décisions de sécurité qu’une IA rate en silence sont déjà prises, documentées et testées.',
-    lead: 'Choisissez ce dont votre système a besoin. Recevez une commande. Le code arrive avec le nom de votre projet partout — paquets, base de données, variables d’environnement — et les choix difficiles déjà faits comme il faut.',
+      'Démarrez un nouveau SaaS avec les décisions de sécurité déjà prises — celles qu’une IA rate en silence.',
+    lead: 'Vous répondez à dix questions, copiez une commande et recevez **un dépôt neuf** : vide de votre produit et plein de tout le reste — connexion, 2FA, invitations, entreprises isolées dans la base de données, file de jobs et tests. Avec le nom de votre projet partout : paquets, base de données, variables d’environnement.',
+    notThis:
+      'Ce n’est pas un analyseur : DontPanic **ne regarde pas le code que vous avez déjà**. C’est le point de départ d’un projet parti de zéro.',
     nameCta: 'Commencer',
     ctaNote: 'Dix questions en langage courant. Vous pouvez en sauter n’importe laquelle.',
     commandLabel: 'Commande du preset par défaut',
     commandNote: 'Nécessite Node 24 et pnpm.',
-    ctaProof: 'Voir les cinq erreurs',
+    ctaProof: 'Voir les cinq décisions',
     facts: [
       {
         value: '78 533',
@@ -52,9 +54,9 @@ export const fr: Messages = {
   },
 
   proof: {
-    eyebrow: 'Des erreurs qui passent la revue',
+    eyebrow: 'Cinq erreurs, déjà tranchées ici',
     title: 'La preuve',
-    lead: 'Rien ici n’est hypothétique. Ce sont des erreurs qui produisent du code qui compile, passe les tests et passe la revue — et qui ressort des mois plus tard, chez un utilisateur qui n’est pas vous. Chacune est déjà tranchée dans le boilerplate, avec la raison à côté de la décision et le test nommé en dessous.',
+    lead: 'Rien ici n’est hypothétique. Ce sont des erreurs qui produisent du code qui compile, passe les tests et passe la revue — et qui ressort des mois plus tard, chez un utilisateur qui n’est pas vous. Ce n’est pas nous qui allons les trouver dans votre code : **chacune est déjà tranchée dans le code que vous recevez**, avec la raison à côté de la décision et le test nommé en dessous.',
     labels: {
       whatHappens: 'Ce qui arrive',
       ours: 'Dans DontPanic',
@@ -526,6 +528,10 @@ export const fr: Messages = {
     title: 'Questions',
     lead: 'Celles qui méritent une réponse honnête avant de lancer la commande.',
     items: [
+      {
+        q: 'Est-ce que ça analyse l’application que j’ai déjà ?',
+        a: 'Non. DontPanic ne lit pas, n’audite pas et ne corrige pas du code existant : il **génère un projet neuf**, parti de zéro, avec ces décisions déjà prises dedans. Si votre application tourne déjà, ce qui sert ici c’est la lecture : générez un projet d’exemple et comparez-le au vôtre, ou parcourez « La preuve » et vérifiez, dans votre propre code, si chacun des cinq cas est traité. La commande ne touche à rien de ce que vous avez écrit.',
+      },
       {
         q: 'Qu’est-ce qui est testé, exactement ?',
         a: 'La matrice des presets, intégralement : la CI génère un projet par preset, exige zéro occurrence de l’ancien nom, puis lance install, typecheck, tests unitaires et e2e. Plus all-on, all-off, et chaque feature désactivée isolément par-dessus le preset SaaS. Quatorze features booléennes font 16 384 combinaisons, et la CI ne teste pas 16 384 projets : les combinaisons hors de cette matrice sont autorisées et non testées — et le CLI le dit, en une ligne, sans drame. Un boilerplate qui promet des garanties qu’il ne vérifie pas est pire qu’un qui annonce la limite.',

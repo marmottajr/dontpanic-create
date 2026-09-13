@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import '../../globals.css';
+import { TagManager } from '@/components/analytics';
 import { themeBootstrapScript } from '@/components/theme-toggle';
 import {
   DEFAULT_LOCALE,
@@ -86,6 +87,7 @@ export default async function LocaleLayout({
         {/* Primeiro filho do body, e síncrono: aplica o tema salvo antes da primeira
             pintura. Qualquer coisa assíncrona chega depois do flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <TagManager />
         {/*
          * Só os dois pesos que a primeira tela usa de fato.
          *

@@ -53,7 +53,16 @@ jobs:
           pnpm --filter @dontpanic/site test
 
       - name: Build estático
+        # `NEXT_PUBLIC_*` é substituído literalmente na build. Com `output: 'export'` não
+        # existe runtime do outro lado para ler variável de ambiente, então o id do GTM
+        # tem que estar presente aqui — no passo de deploy já é tarde. É *variable* e não
+        # *secret* de propósito: o id vai no HTML de toda página, e guardá-lo como
+        # segredo prometeria uma proteção que o meio de entrega desmente. O que se ganha
+        # é mantê-lo fora do versionamento e trocável sem commit. Ausente, o site sobe
+        # sem tag nenhuma em vez de falhar.
         run: pnpm --filter @dontpanic/site build
+        env:
+          NEXT_PUBLIC_GTM_ID: ${{ vars.NEXT_PUBLIC_GTM_ID }}
 
       - name: O export tem de ter as sete raízes de idioma
         # `output: 'export'` falha em silêncio quando alguém introduz uma rota dinâmica ou

@@ -1,6 +1,7 @@
 'use client';
 
 import { ChoiceList } from './choice-list';
+import { WIZARD_TERMS } from '@/content/wizard-terms';
 import { WizardIssues } from './wizard-issues';
 import { CommandBlock } from '../command-block';
 import { CopyButton } from '../copy-button';
@@ -400,7 +401,18 @@ function ReviewStep({ messages }: { messages: Messages }): React.ReactElement {
             key={row.step}
             className="flex items-baseline gap-3 border-t border-rule py-2.5 last:border-b"
           >
-            <dt className="label w-[7.5rem] shrink-0 text-faint">{row.label}</dt>
+            {/* O termo oficial aparece também aqui: a revisão é onde a pessoa relê as
+                escolhas, e é a segunda vez que ela vê o nome do recurso ao lado da
+                resposta — é essa repetição que faz o termo grudar. Fica abaixo do
+                rótulo, na mesma coluna, para não empurrar o valor. */}
+            <dt className="w-[7.5rem] shrink-0">
+              <span className="label block text-faint">{row.label}</span>
+              {WIZARD_TERMS[row.step] ? (
+                <span className="mt-0.5 block font-mono text-[10px] leading-tight text-faint/70">
+                  {WIZARD_TERMS[row.step]}
+                </span>
+              ) : null}
+            </dt>
             <dd className={cn('min-w-0 flex-1 break-words', row.mono && 'font-mono text-small')}>
               {row.value}
             </dd>

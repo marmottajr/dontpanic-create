@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from 'react';
 
+import { StepEyebrow } from './step-eyebrow';
 import { WizardStepBody } from './wizard-steps';
 import { RichText } from '../rich-text';
 import type { Messages } from '@/i18n/messages';
@@ -184,7 +185,7 @@ export function WizardModal({ messages }: { messages: Messages }): React.ReactEl
         </header>
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-7 sm:py-7">
-          <p className="label label-wide text-dim">{step.eyebrow}</p>
+          <StepEyebrow step={stepId} label={step.eyebrow} />
           <h2 id={titleId} className="measure mt-2 text-h3 font-semibold sm:text-h2">
             {step.question}
           </h2>

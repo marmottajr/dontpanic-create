@@ -139,9 +139,28 @@ jobs:
         # compila antes de o pacote sair.
         run: pnpm --filter create-dontpanic conformance --case=preset-saas
 
+      - name: O provenance é possível neste repositório?
+        id: prov
+        # `--provenance` assina o pacote provando de qual repositório e de qual commit
+        # ele saiu — e o npm SÓ aceita essa prova quando o repositório de origem é
+        # público, porque a verificação depende de o Sigstore poder auditar a origem.
+        # Num repositório privado a publicação é recusada inteira, com um 422 que fala de
+        # "sigstore provenance bundle" e não de visibilidade até o fim da mensagem.
+        #
+        # Então a flag é condicional: o pacote sai de qualquer jeito, e ganha a assinatura
+        # sozinho no dia em que o repositório virar público.
+        run: |
+          if [ "${{ github.event.repository.visibility }}" = "public" ]; then
+            echo "flag=--provenance" >> "$GITHUB_OUTPUT"
+            echo "Repositório público: publicando COM provenance."
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+            echo "::warning::Repositório privado — publicando SEM provenance. Quem instalar não terá como verificar de qual commit o pacote saiu. Tornar o repositório público liga isso de volta sem mudar mais nada."
+          fi
+
       - name: Publicar no npm
         if: steps.check.outputs.skip != 'true' && inputs.dry_run != true
-        run: pnpm --filter create-dontpanic publish --access public --no-git-checks --provenance
+        run: pnpm --filter create-dontpanic publish --access public --no-git-checks ${{ steps.prov.outputs.flag }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -157,6 +176,6 @@ jobs:
             elif [ "${{ inputs.dry_run }}" = "true" ]; then
               echo "- **ensaio**: tudo verificado, nada publicado"
             else
-              echo "- publicado"
+              echo "- publicado ${{ steps.prov.outputs.flag == '--provenance' && 'com provenance' || '**sem provenance** (repositório privado)' }}"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,82 @@
+name: Deploy do site
+
+# Publica a landing em Cloudflare Workers (assets estáticos).
+#
+# Só dispara quando algo de `apps/web` muda — mexer no gerador não redeploya o site, e
+# vice-versa. A conformidade e o release do pacote seguem o caminho deles.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/cli/src/recipe.ts' # a landing importa a lógica de receita daqui
+      - 'packages/cli/src/naming.ts'
+      - 'packages/cli/src/types.ts'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # O site importa `recipe`/`naming` do pacote do gerador, então ele precisa estar
+      # compilado antes — senão o build da landing resolve os imports para nada e o
+      # configurador sai sem a lógica que monta o comando.
+      - name: Build do gerador (o site depende dele)
+        run: pnpm --filter create-dontpanic build
+
+      - name: Verificações da landing
+        run: |
+          pnpm --filter @dontpanic/site typecheck
+          pnpm --filter @dontpanic/site lint
+          pnpm --filter @dontpanic/site test
+
+      - name: Build estático
+        run: pnpm --filter @dontpanic/site build
+
+      - name: O export tem de ter as sete raízes de idioma
+        # `output: 'export'` falha em silêncio quando alguém introduz uma rota dinâmica ou
+        # uma server action: o build passa e o `out/` sai incompleto. Publicar isso põe no
+        # ar um site a que faltam páginas, sem nenhum erro no caminho.
+        run: |
+          cd apps/web
+          faltando=""
+          for l in pt-br pt-pt en es fr de it; do
+            [ -f "out/$l/index.html" ] || faltando="$faltando $l"
+          done
+          [ -f out/index.html ] || faltando="$faltando raiz"
+          if [ -n "$faltando" ]; then
+            echo "::error::faltam páginas no export:$faltando"
+            exit 1
+          fi
+          echo "as 7 raízes + a raiz de detecção estão no out/"
+          du -sh out
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
+          command: deploy

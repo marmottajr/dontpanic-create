@@ -90,6 +90,49 @@ template. Ele avisa e **não bloqueia**: um hook que impede o commit ensina a de
 Para rodar a matriz com e2e no CI sob demanda: **Actions › Conformidade › Run workflow ›
 marcar "Incluir a suíte e2e"**.
 
+## Publicar o site
+
+A landing é um export estático servido por **Cloudflare Workers** (assets, sem código de
+Worker — não há nada para renderizar sob demanda).
+
+```bash
+pnpm --filter @dontpanic/site build
+pnpm --filter @dontpanic/site deploy     # wrangler deploy
+```
+
+No CI isso acontece sozinho: `.github/workflows/deploy-site.yml` dispara quando `apps/web`
+muda, roda typecheck/lint/test, builda e publica. Ele exige dois segredos no repositório —
+`CLOUDFLARE_API_TOKEN` (com permissão *Workers Scripts: Edit*) e `CLOUDFLARE_ACCOUNT_ID`.
+
+Antes do deploy, o workflow confere que **as sete raízes de idioma existem no `out/`**.
+`output: 'export'` falha em silêncio quando alguém introduz uma rota dinâmica ou uma server
+action: o build passa e o `out/` sai incompleto. Sem essa checagem, o site vai ao ar com
+páginas faltando e sem nenhum erro no caminho.
+
+O domínio (`getdontpanic.com`) é ligado como Custom Domain pelo painel, ou descomentando
+`routes` no `wrangler.jsonc` depois que a zona estiver ativa.
+
+## Como o site escolhe o idioma
+
+Três camadas, nesta ordem de autoridade:
+
+1. **A escolha explícita da pessoa**, guardada em `localStorage` (`writeStoredLocale`).
+2. **`navigator.languages`**, quando não há escolha salva.
+3. **`en`**, se nada casar.
+
+A decisão acontece no cliente porque com `output: 'export'` não existe servidor para
+negociar `Accept-Language` — o que chega ao navegador é HTML estático de CDN. A raiz `/`
+redireciona com `location.replace` e não `push`, para o botão de voltar sair do site em vez
+de cair de novo na página que redireciona, num laço que aprisiona a pessoa.
+
+E a raiz não é uma tela em branco esperando JavaScript: ela **é** a lista de idiomas, com
+links reais. É o que vê quem está sem JS, é o que um crawler segue, e é o que sobra se a
+detecção errar.
+
+Toda leitura e escrita de `localStorage` está em `try/catch` — em aba privada o próprio
+acessor lança, e ali a detecção por navegador continua funcionando; só não lembra da
+escolha.
+
 ## O que o gerador faz, concretamente
 
 Um `npx` resolve, numa passada, o que separava "clonei o boilerplate" de "tenho o meu projeto":

@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Site puramente estático: **não existe `main`** aqui, de propósito.
+  //
+  // O Next roda com `output: 'export'`, então o build produz HTML pronto e não há nada
+  // para renderizar sob demanda. Declarar um Worker de entrada faria cada requisição
+  // passar por código nosso para no fim devolver o mesmo arquivo — custo de execução e
+  // uma superfície de falha a mais, em troca de nada. Sem `main`, a Cloudflare serve os
+  // assets direto do edge.
+  "name": "dontpanic-site",
+  "compatibility_date": "2026-09-13",
+
+  "assets": {
+    "directory": "./out",
+
+    // `auto-trailing-slash` é o default e é o que casa com o export do Next: ele gera
+    // `out/pt-br/index.html`, e este modo serve tanto `/pt-br` quanto `/pt-br/` sem
+    // redirecionar em laço.
+    "html_handling": "auto-trailing-slash",
+
+    // `404-page`, não `single-page-application`.
+    //
+    // O site tem sete raízes de idioma pré-renderizadas; não é uma SPA com uma casca só.
+    // Com `single-page-application`, um caminho inexistente devolveria o HTML da home com
+    // status 200 — e aí um crawler indexa páginas que não existem e um erro de digitação
+    // vira uma home silenciosa em vez de um 404 honesto.
+    "not_found_handling": "404-page"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // O domínio `getdontpanic.com` é ligado como Custom Domain.
+  //
+  // Deixado fora do arquivo de propósito: a rota só existe depois que a zona está ativa
+  // na conta, e um `routes` apontando para zona inexistente faz `wrangler deploy` falhar
+  // com um erro sobre zona — que não é o que a pessoa está tentando fazer no primeiro
+  // deploy. Ligue pelo painel (Workers › dontpanic-site › Settings › Domains & Routes) ou
+  // descomente depois que a zona existir:
+  //
+  // "routes": [
+  //   { "pattern": "getdontpanic.com", "custom_domain": true },
+  //   { "pattern": "www.getdontpanic.com", "custom_domain": true }
+  // ]
+}

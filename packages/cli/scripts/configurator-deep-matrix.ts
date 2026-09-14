@@ -598,6 +598,35 @@ function generate(): Generated {
   accept('sem-captcha', DEFAULT_PROJECT_NAME, { ...presetAnswers('saas'), captcha: false, captchaDriver: 'n/a' });
   accept('captcha-sem-multi-tenancy', DEFAULT_PROJECT_NAME, { ...presetAnswers('saas'), multiTenant: false });
 
+  // Receitas que só o TERMINAL monta. O assistente não pergunta o idioma default — ele vem
+  // do preset, e os quatro são `pt` —, então nenhuma linha de respostas desemboca num
+  // projeto só em inglês. E foi exatamente esse projeto que nasceu sem compilar: as
+  // costuras de i18n só sabiam descartar o inglês. O caso entra com as flags do CLI e SEM
+  // respostas: não soma cobertura de tupla (não responde pergunta nenhuma do assistente),
+  // só garante que a combinação é gerada, instalada e testada, e2e incluso.
+  const acceptFlags = (id: string, projectName: string, flags: string[], preset: PresetId): void => {
+    const outcome = throughCli(projectName, flags);
+    // Lança em vez de registrar recusa: um caso fixo que o CLI recusa é defeito deste
+    // script, e seguir em silêncio tiraria o caso da matriz sem ninguém notar.
+    if (outcome.blocking.length > 0 || outcome.recipe === undefined) {
+      throw new Error(`[${id}] o CLI recusa o caso fixo: ${outcome.blocking.join(' / ')}`);
+    }
+    const key = caseKey(outcome.recipe);
+    const existing = byKey.get(key);
+    if (existing) throw new Error(`[${id}] o caso fixo repete a receita de ${existing.id}`);
+    const created: DeepCase = {
+      id,
+      projectName,
+      flags,
+      e2e: true,
+      resumo: summarize(outcome.recipe, preset),
+      respostas: [],
+    };
+    cases.push(created);
+    byKey.set(key, created);
+  };
+  acceptFlags('idioma-unico-en', DEFAULT_PROJECT_NAME, ['--default-locale=en', '--i18n=false'], 'saas');
+
   // ── A gulosa ──
   const random = mulberry32(0x0dec0de);
   while (uncovered.size > 0) {
@@ -651,9 +680,11 @@ function serialize(cases: readonly DeepCase[]): string {
       `    "flags": ${JSON.stringify(c.flags)},`,
       `    "e2e": ${String(c.e2e)},`,
       `    "resumo": ${JSON.stringify(c.resumo)},`,
-      '    "respostas": [',
-      c.respostas.map((a) => `      ${JSON.stringify(a)}`).join(',\n'),
-      '    ]',
+      // Um caso só de CLI não tem respostas; `[` + linha vazia + `]` seria JSON válido e
+      // diff feio.
+      ...(c.respostas.length === 0
+        ? ['    "respostas": []']
+        : ['    "respostas": [', c.respostas.map((a) => `      ${JSON.stringify(a)}`).join(',\n'), '    ]']),
       '  }',
     ].join('\n'),
   );
@@ -762,7 +793,7 @@ async function main(): Promise<void> {
   console.log(`Matriz profunda do configurador: ${cases.length} caso(s)`);
   console.log(
     `  fixos: ${cases.length - generated.generatedRows}; gerados pela gulosa: ${generated.generatedRows}; ` +
-      `linhas de resposta que colapsaram numa receita já presente: ${cases.reduce((n, c) => n + c.respostas.length - 1, 0)}`,
+      `linhas de resposta que colapsaram numa receita já presente: ${cases.reduce((n, c) => n + Math.max(0, c.respostas.length - 1), 0)}`,
   );
   console.log(`  triplas (3-wise, perguntas do assistente): ${result.covered[3]}/${result.required[3]}`);
   console.log(`  pares (2-wise, com drivers de link):       ${result.covered[2]}/${result.required[2]}`);

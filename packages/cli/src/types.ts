@@ -263,6 +263,19 @@ export interface SeamEdit {
   required?: boolean;
   /** Por que esta edição existe — aparece no erro se ela falhar. */
   reason?: string;
+  /**
+   * Só aplica a costura quando o idioma único que SOBRA é este (`pt` ou `en`).
+   *
+   * Existe para as poucas edições que não têm forma bidirecional. Um placeholder resolve
+   * "troque o literal do idioma descartado pelo que sobrou", mas não resolve "a asserção
+   * `/verificação/` vira `/verification/`": o texto novo é conteúdo de UM idioma, e a
+   * mesma costura aplicada no outro sentido reescreveria um teste certo para errado.
+   *
+   * É um seletor, não um `{{#if}}`: a costura inteira entra ou não entra, e o texto dela
+   * continua literal. Omitido, vale para os dois sentidos — que é o que toda costura deve
+   * preferir ser.
+   */
+  onlyWhenLanguage?: 'pt' | 'en';
 }
 
 /**

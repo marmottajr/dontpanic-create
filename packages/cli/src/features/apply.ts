@@ -266,26 +266,24 @@ export async function applyFeatureRemoval(
   // ── 4. Modo single-tenant e single-language: o que o manifesto não expressa ─
   const localeTag = await pruneLocaleCatalogues(ctx, result);
 
-  // Assimetria conhecida do manifesto de i18n: algumas costuras de spec nomeiam os testes
-  // do idioma DESCARTADO, e as âncoras foram escritas assumindo que o descartado é o
-  // inglês — o que vale para os quatro presets, todos com `defaultLocale: 'pt'`. Com outro
-  // idioma default, aquelas costuras não casam (são `required: false`) e a suíte do projeto
-  // gerado nasce vermelha em dois testes de e-mail. Avisar alto é melhor que gerar assim em
-  // silêncio; o conserto é escrever as âncoras espelhadas no manifesto.
-  if (!recipe.features.i18n && localeTag !== undefined && !localeTag.startsWith('pt')) {
-    result.warnings.push(
-      `Idioma único "${localeTag}": as costuras de spec de i18n foram escritas para o caso ` +
-        `em que o INGLÊS é o idioma descartado (é o dos quatro presets). Com "${localeTag}" ` +
-        `como default, revise \`invitation-email.spec.ts\` no projeto gerado — dois testes ` +
-        `comparam o assunto do e-mail com string exata e podem falhar.`,
-    );
-  }
+  // Aqui morava um aviso de "idioma único em inglês: revise os specs de e-mail", porque as
+  // costuras de spec de i18n só sabiam descartar o inglês. Elas passaram a funcionar nos
+  // dois sentidos — por placeholder quando a edição é simétrica, por `onlyWhenLanguage`
+  // quando o texto novo é de um idioma só — e o projeto gerado em inglês é testado pela
+  // matriz profunda (caso `idioma-unico-en`). Um aviso que já não é verdade ensina a
+  // ignorar os outros.
+  const survivingLanguage = (localeTag ?? recipe.i18n.defaultLocale).startsWith('pt') ? 'pt' : 'en';
 
   // ── 5. Costuras, agrupadas por arquivo ────────────────────────────────────
   const byFile = new Map<string, { feature: FeatureId | '(incondicional)'; seam: SeamEdit }[]>();
 
   for (const id of order) {
     for (const seam of FEATURE_MANIFESTS[id].seams ?? []) {
+      // A costura de um idioma só fica FORA do lote quando o idioma que sobra é o outro —
+      // nem aplicada nem registrada como pulada: para esta receita ela não existe, e
+      // contá-la como "sem casamento" poluiria o relatório com falsos sinais de manifesto
+      // envelhecido.
+      if (seam.onlyWhenLanguage !== undefined && seam.onlyWhenLanguage !== survivingLanguage) continue;
       const file = expandPlaceholders(seam.file, recipe, localeTag);
       const bucket = byFile.get(file) ?? [];
       bucket.push({ feature: id, seam });

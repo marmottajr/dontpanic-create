@@ -80,6 +80,14 @@
     ]
   },
   {
+    "id": "idioma-unico-en",
+    "projectName": "Acme Corp",
+    "flags": ["--default-locale=en","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · sem oauth · 2FA · só en · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": []
+  },
+  {
     "id": "cfg-001",
     "projectName": "Acme Corp",
     "flags": ["--preset=minimal","--multi-tenant","--oauth=google","--invitations","--i18n=pt,en","--no-queue","--captcha=recaptcha-v3","--storage=s3","--mail=ses"],

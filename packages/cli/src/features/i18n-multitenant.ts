@@ -257,7 +257,7 @@ export const i18nManifest: FeatureManifest = {
       block: { start: "it\\('builds an English email when locale=en", end: '\\}\\);' },
       required: false,
       reason:
-        'O teste do template em inglês. `required: false` porque, se o idioma que sobrou FOR o inglês, é o teste em pt-BR que sai — e aí a costura irmã é que casa.',
+        'O teste que ESCOLHE o inglês por `locale: \'en\'` sai nos dois sentidos: com o português sobrando o literal não tipa contra `EmailLocale`; com o inglês sobrando ele repete o teste do idioma default, que a costura `onlyWhenLanguage: \'en\'` abaixo reescreve para inglês.',
     },
     {
       file: 'apps/api/src/modules/auth/support/email-templates.spec.ts',
@@ -266,6 +266,49 @@ export const i18nManifest: FeatureManifest = {
       required: false,
       reason:
         'O fallback de locale desconhecido deixa de ser observável quando só existe um locale: qualquer entrada resolve para ele, e o teste passaria por construção sem provar nada.',
+    },
+    // O espelho, para quando o idioma que sobra é o INGLÊS.
+    //
+    // As duas costuras acima já tiram, nos dois sentidos, o teste que ESCOLHE o inglês e o
+    // do fallback. Sobra o teste "e-mail no idioma default", que afirma o assunto em
+    // português (`/verificação/`) — e o default agora é inglês. Reescrito, não apagado:
+    // é o único que prova que nome e código chegam ao HTML e ao texto puro. A troca é de
+    // CONTEÚDO de um idioma, então não tem forma bidirecional: `onlyWhenLanguage`.
+    {
+      file: 'apps/api/src/modules/auth/support/email-templates.spec.ts',
+      kind: 'replace',
+      pattern: 'builds a pt-BR email by default([^\\n]*\\n[\\s\\S]*?)/verificação/i',
+      replacement: 'builds an English email by default$1/verification/i',
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'Com o inglês sobrando, o e-mail default sai em inglês e a asserção `/verificação/i` falha. O teste continua provando nome e código no HTML e no texto; muda só o idioma que ele espera.',
+    },
+    // `sendVerificationCode(…, 'pt-BR')` no spec de auth: o locale é de passagem (o teste
+    // prova que o código gravado é o que vai no e-mail), mas é argumento POSICIONAL, então
+    // a costura de `locale: '…'` abaixo não o alcança — e com o inglês sobrando ele dá
+    // `TS2345` e o ts-jest derruba a suíte inteira. A alternância dos dois literais torna a
+    // troca idempotente quando o literal já é o idioma que sobrou.
+    {
+      file: 'apps/api/src/modules/auth/services/auth.service.spec.ts',
+      kind: 'replace',
+      pattern: "'New User', '(?:pt-BR|en)'\\)",
+      replacement: "'New User', '{{i18n.emailLocale}}')",
+      reason:
+        'Locale posicional de `sendVerificationCode` no spec de auth: sem a troca, o literal do idioma descartado não tipa contra `EmailLocale` e a suíte inteira cai antes de rodar.',
+    },
+    // O convite que o painel manda ao criar empresa afirma `locale: 'pt-BR'` dentro do
+    // `objectContaining` — o `Tenant.locale` da fixture é `pt-BR`, mas `mailLocale()` virou
+    // constante. O lookbehind em `expiresAt: EXPIRES` separa esta asserção do `locale:
+    // 'pt-BR'` da fixture de tenant (linha 32), que é BCP-47 livre e deve ficar como está.
+    {
+      file: 'apps/api/src/modules/platform/services/platform-tenants.service.spec.ts',
+      kind: 'replace',
+      pattern: "(?<=expiresAt: EXPIRES,\\s*)locale: '(?:pt-BR|en)'",
+      replacement: "locale: '{{i18n.emailLocale}}'",
+      required: false,
+      reason:
+        'A asserção do idioma do convite enviado pelo painel: com `mailLocale()` constante, o valor esperado é o idioma que sobrou. `required: false`: arquivo só existe com `platform`.',
     },
     // Todo `locale: '<idioma descartado>'` em spec vira o idioma que SOBROU.
     //
@@ -291,14 +334,20 @@ export const i18nManifest: FeatureManifest = {
       reason:
         'Locale de passagem em spec: o teste continua provando o que provava (e-mail enfileirado, convite emitido, link com token), só deixa de nomear um idioma que o projeto não tem mais. `required: false` porque os specs de convite só existem com a feature `invitations`.',
     })),
-    // Os dois testes de `invitation-email.spec.ts` que afirmam o texto EM INGLÊS.
+    // `invitation-email.spec.ts` afirma texto dos DOIS idiomas com `toBe`/`toContain`, string
+    // exata — o mapa (I18) alerta para não mexer nas fixtures do Guia do Mochileiro. Então
+    // o tratamento depende de qual idioma sobra, e cada costura abaixo diz o seu:
     //
-    // Assimetria conhecida e aceita na v1: as âncoras nomeiam os testes ingleses porque os
-    // quatro presets têm `defaultLocale: 'pt'`, então é sempre o inglês que sai. Numa
-    // receita `--i18n=en` seriam os três testes em pt-BR que precisariam sair — o
-    // `apply.ts` emite um aviso alto nesse caso, em vez de gerar uma suíte vermelha em
-    // silêncio. O mapa (I18) alerta justamente para não mexer nas fixtures do Guia do
-    // Mochileiro aqui: os assuntos são comparados com `toBe`, string exata.
+    //  - sobra o português (`onlyWhenLanguage: 'pt'`): saem os dois testes que afirmam o
+    //    texto inglês; os de pt-BR ficam como estão.
+    //  - sobra o inglês (`onlyWhenLanguage: 'en'`): os dois testes ingleses FICAM (são eles
+    //    que cobrem o link no botão e no texto puro, e o prazo em UTC); sai o "names both
+    //    people in pt-BR too", redundante com o "carries the link"; e o "defaults…" e o
+    //    "falls back…" são reescritos para o texto inglês — o primeiro é o único que cobre
+    //    o convite sem convidador, o segundo o fallback da tabela.
+    //
+    // Antes daqui só existia a primeira metade, e um projeto só em inglês nascia com três
+    // testes vermelhos (e, até o `EmailLocale` colapsar para o lado certo, sem compilar).
     {
       file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
       kind: 'dropBlock',
@@ -307,6 +356,7 @@ export const i18nManifest: FeatureManifest = {
         end: '\\}\\);',
       },
       required: false,
+      onlyWhenLanguage: 'pt',
       reason:
         'Afirma `mail.subject` em inglês com `toBe` (string exata) e o corpo com "Marvin invited you to join". Com o inglês fora, o template renderiza em pt-BR e a comparação falha — e não há reescrita possível: o assunto do teste É o texto inglês. A cobertura do link no botão e no texto puro continua nos testes pt-BR do mesmo arquivo.',
     },
@@ -318,8 +368,56 @@ export const i18nManifest: FeatureManifest = {
         end: '\\}\\);',
       },
       required: false,
+      onlyWhenLanguage: 'pt',
       reason:
         'Mesmo caso: formata o prazo com o locale inglês e compara a string montada. O teste irmão em pt-BR cobre a formatação de data que sobra.',
+    },
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('names both people in pt-BR too", end: '\\}\\);' },
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'Passa `locale: \'pt-BR\'` e afirma o corpo em português. Com o inglês sobrando não há o que reescrever que o "carries the link in both the button…" já não prove — os dois nomes no corpo, em inglês.',
+    },
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
+      kind: 'replace',
+      pattern:
+        "defaults to pt-BR and drops the inviter when there is none([\\s\\S]*?)'Convite para Sirius Cybernetics — DontPanic'([\\s\\S]*?)'Você foi convidado para fazer parte de'([\\s\\S]*?)\"Olá, null\"([\\s\\S]*?)'>Olá</h1>'([\\s\\S]*?)'Olá\\\\n'",
+      replacement:
+        "defaults to English and drops the inviter when there is none$1\"You're invited to Sirius Cybernetics — DontPanic\"$2'You have been invited to join'$3\"Hello, null\"$4'>Hello</h1>'$5'Hello\\n'",
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'O único teste do convite SEM convidador (saudação sem nome, corpo na voz passiva). Com o inglês sobrando, o default renderiza em inglês; a reescrita troca só os textos esperados, e o teste continua provando que não sai "Hello, null".',
+    },
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.spec.ts',
+      kind: 'replace',
+      pattern:
+        "falls back to pt-BR for a locale the table does not know([\\s\\S]*?)toContain\\('Convite para'\\)",
+      replacement:
+        'falls back to English for a locale the table does not know$1toContain("You\'re invited to")',
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'O fallback da tabela `STRINGS` para um locale desconhecido cai no idioma que sobrou; com o inglês, o assunto esperado é o inglês. A costura de `invitation-email.ts` que troca `STRINGS[\'pt-BR\']` é o par desta.',
+    },
+    // O serviço de convites também espia o HTML do e-mail enfileirado: o teste "copes with
+    // no name, no surviving inviter and no request context" afirma que, sem locale no
+    // request, sai o corpo do idioma default — escrito em português. Não tipa errado (é
+    // uma string solta), então só aparece como vermelho em runtime.
+    {
+      file: 'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      kind: 'replace',
+      pattern: "'Você foi convidado para fazer parte de'",
+      replacement: "'You have been invited to join'",
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'Request sem locale cai no idioma que sobrou; com o inglês, o corpo sem convidador é "You have been invited to join". O teste continua provando o fallback de locale e a ausência do nome. `required: false`: arquivo só existe com `invitations`.',
     },
     {
       // DEPOIS dos dois `dropBlock` acima, de propósito: as costuras de um arquivo são
@@ -358,14 +456,13 @@ export const i18nManifest: FeatureManifest = {
     // signup), e o ts-jest derruba a SUÍTE inteira antes de rodar um teste. O `tsc` de
     // build não vê: `*.spec.ts` fica fora do programa.
     //
-    // O literal é reescrito para o idioma que sobrou pela ALTERNÂNCIA dos dois possíveis,
-    // não pelo placeholder `{{i18n.droppedEmailLocaleKey}}` das costuras acima. Motivo: com
-    // `i18n` desligado o `disableI18n` do `recipe.ts` já reduziu `recipe.i18n.locales` a um
-    // item, então o `expandPlaceholders` não tem idioma descartado para nomear e cai no
-    // fallback `'en'` — certo quando sobra o português, errado quando sobra o inglês (aí
-    // o padrão procuraria `'en'` e deixaria um `'pt-BR'` que não tipa). Casar os dois e
-    // escrever `{{i18n.emailLocale}}` funciona nos dois sentidos; quando o literal já é o
-    // do idioma que sobrou, a troca é idempotente.
+    // O literal é reescrito para o idioma que sobrou pela ALTERNÂNCIA dos dois possíveis.
+    // Historicamente era contorno: o placeholder `{{i18n.droppedEmailLocaleKey}}` valia
+    // sempre `'en'` com i18n desligado (ver `expandPlaceholders`). Hoje ele nomeia o
+    // descartado certo, mas a alternância continua sendo a forma mais robusta para um
+    // literal que o template pode trocar de lado: casar os dois e escrever
+    // `{{i18n.emailLocale}}` funciona nos dois sentidos, e quando o literal já é o do idioma
+    // que sobrou a troca é idempotente.
     //
     // Reescrever, e não apagar, pelo mesmo motivo dos specs de auth/convite: ali o locale é
     // de passagem — os testes provam vínculo de conta OAuth, emissão de tokens, criação de
@@ -415,8 +512,8 @@ export const i18nManifest: FeatureManifest = {
     // Três serviços caem em `'pt-BR'` quando o request não trouxe locale. Com o português
     // sobrando a troca é idempotente; com o inglês sobrando `EmailLocale` é `'en'` e o
     // literal `'pt-BR'` dá `TS2345`/`TS2322` no próprio código de produção — o build
-    // quebra, não só o spec. Mesma alternância das costuras de spec acima, pelo mesmo
-    // motivo: `{{i18n.droppedEmailLocaleKey}}` não sabe nomear o idioma descartado.
+    // quebra, não só o spec. Mesma alternância das costuras de spec acima: idempotente no
+    // sentido do idioma que já está escrito, correta no outro.
     {
       file: 'apps/api/src/modules/auth/services/auth.service.ts',
       kind: 'replace',
@@ -512,6 +609,65 @@ export const i18nManifest: FeatureManifest = {
         'Mapa 2730 (linhas 56-68): a toolbar `globalTypes.locale` (itens pt-BR/en-US, 🇧🇷/🇺🇸) existe só para o LanguageSwitcher — o próprio comentário da linha 57 diz isso. É um literal de objeto aninhado (toolbar → items → 2 objetos), então `dropBlock` por delimitador de linha pararia no `},` errado: precisa de contagem de chaves.',
     },
 
+    // ── web · o teste do card de métrica lê o catálogo REAL ──────────────────
+    //
+    // `metric-card.test.tsx` importa `messages/pt-BR.json` direto (de propósito: uma chave
+    // que some do catálogo derruba o teste) e afirma o texto e o formato de número do
+    // português. Com o inglês sobrando, o import aponta para um arquivo que a poda de
+    // catálogos apagou — `TS2307` no `tsc` do web e a suíte do vitest cai inteira.
+    //
+    // O caminho do import e o `useLocale` têm forma bidirecional (a tag descartada vira a
+    // que sobrou). As asserções não: `+15,5%` → `+15.5%` e "mês anterior" → "last month" são
+    // conteúdo de um idioma, então só entram quando sobra o inglês.
+    {
+      file: 'apps/web/src/components/dashboard/metric-card.test.tsx',
+      kind: 'replace',
+      pattern: "messages/{{i18n.droppedLocaleTag}}\\.json'",
+      replacement: "messages/{{i18n.defaultLocale}}.json'",
+      required: false,
+      reason:
+        'O teste resolve as chaves no catálogo real; o catálogo do idioma descartado foi apagado, então o import passa a ser o do idioma que sobrou.',
+    },
+    {
+      file: 'apps/web/src/components/dashboard/metric-card.test.tsx',
+      kind: 'replace',
+      pattern: "useLocale: \\(\\) => '{{i18n.droppedLocaleTag}}'",
+      replacement: "useLocale: () => '{{i18n.defaultLocale}}'",
+      required: false,
+      reason:
+        'O `useLocale` simulado decide o formato do percentual; tem de ser o idioma do catálogo que o teste importa, senão número e texto saem de idiomas diferentes.',
+    },
+    {
+      file: 'apps/web/src/components/dashboard/metric-card.test.tsx',
+      kind: 'replace',
+      pattern: '\\bptBR\\b|real pt-BR catalogue',
+      replacement: 'enUS',
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'O nome do binding (e a menção no comentário) dizia de qual catálogo as chaves vêm; com o import trocado para en-US, `ptBR` passaria a mentir sobre o arquivo.',
+    },
+    {
+      file: 'apps/web/src/components/dashboard/metric-card.test.tsx',
+      kind: 'replace',
+      pattern: "'\\+15,5%'",
+      replacement: "'+15.5%'",
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        'A variação renderizada com `useLocale` en-US usa ponto decimal. Os demais valores afirmados (`−25%`, `0%`) são iguais nos dois idiomas.',
+    },
+    {
+      file: 'apps/web/src/components/dashboard/metric-card.test.tsx',
+      kind: 'replace',
+      pattern: 'mês anterior',
+      replacement: 'last month',
+      required: false,
+      onlyWhenLanguage: 'en',
+      reason:
+        '`dashboard.variation.vsPrevious` em en-US é "vs. last month": vale para a asserção positiva e para a negativa (`not.toContain`), que sem a troca passaria por construção.',
+    },
+
     // ── API · o SEGUNDO sistema bilíngue, artesanal, que não passa pelo next-intl ─
     // Mapa 2989-3000 (§k.2) — "a acoplagem mais surpreendente da feature":
     // `EmailLocale = 'pt-BR' | 'en'` em auth/support/email-templates.ts:1 com a
@@ -559,6 +715,48 @@ export const i18nManifest: FeatureManifest = {
       replacement: "'{{i18n.defaultLocale}}'",
       reason:
         'Mapa 2991 (invitation-email.ts:73-80, `formatDeadline`): o `Intl.DateTimeFormat` escolhe a tag BCP-47 pelo locale do convite. Com um idioma só, a escolha é constante — e um prazo formatado na convenção errada é exatamente o que faz alguém perder um dia útil.',
+    },
+    // ── API · o idioma de fallback DENTRO dos dois templates de e-mail ────────
+    //
+    // Os dois templates caem em `'pt-BR'` quando o chamador não passa locale:
+    // `STRINGS[params.locale ?? 'pt-BR'] ?? STRINGS['pt-BR']`. Com o português sobrando isso
+    // é o próprio idioma e compila; com o inglês sobrando `STRINGS` é `Record<'en', …>`,
+    // indexá-lo com `'pt-BR'` dá `TS7053`, e o `locale` que segue para `formatDeadline` dá
+    // `TS2345` — o BUILD da API quebra, não só o spec. A alternância dos dois literais faz a
+    // troca idempotente no sentido do português, sem precisar de `onlyWhenLanguage`.
+    {
+      file: 'apps/api/src/modules/auth/support/email-templates.ts',
+      kind: 'replace',
+      pattern: "params\\.locale \\?\\? '(?:pt-BR|en)'",
+      replacement: "params.locale ?? '{{i18n.emailLocale}}'",
+      reason:
+        'Fallback de locale do e-mail de código (índice de `STRINGS` e o `lang` do `<html>`): tem de ser o idioma que o projeto tem, senão não tipa contra `Record<EmailLocale, …>` quando sobra o inglês.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/support/email-templates.ts',
+      kind: 'replace',
+      pattern: "STRINGS\\['(?:pt-BR|en)'\\]",
+      replacement: "STRINGS['{{i18n.emailLocale}}']",
+      reason:
+        'O fallback defensivo `?? STRINGS[…]` para um locale fora da tabela: indexar com a chave do idioma descartado é `TS7053` quando sobra o inglês.',
+    },
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.ts',
+      kind: 'replace',
+      pattern: "params\\.locale \\?\\? '(?:pt-BR|en)'",
+      replacement: "params.locale ?? '{{i18n.emailLocale}}'",
+      required: false,
+      reason:
+        'O gêmeo no e-mail de convite: o `locale` resolvido segue para `formatDeadline(date, locale: EmailLocale)` e, com o literal descartado na união, dá `TS2345` nas duas chamadas. `required: false`: arquivo só existe com `invitations`.',
+    },
+    {
+      file: 'apps/api/src/modules/invitations/support/invitation-email.ts',
+      kind: 'replace',
+      pattern: "STRINGS\\['(?:pt-BR|en)'\\]",
+      replacement: "STRINGS['{{i18n.emailLocale}}']",
+      required: false,
+      reason:
+        'O fallback defensivo da tabela do convite, mesmo `TS7053` do e-mail de código. `required: false`: arquivo só existe com `invitations`.',
     },
 
     // ── API · as cinco cópias da linha que lê o cookie do web ────────────────

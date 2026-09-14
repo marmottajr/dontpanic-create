@@ -22,8 +22,15 @@ import {
 } from '@/lib/wizard-answers';
 import { cn } from '@/lib/cn';
 
-/** Os idiomas que o projeto gerado pode nascer com — códigos curtos, como o CLI usa. */
-const PROJECT_LOCALES = ['pt', 'en', 'es', 'fr', 'de'] as const;
+/**
+ * Os idiomas que o projeto gerado pode nascer com — códigos curtos, como o CLI usa.
+ *
+ * Só os que o boilerplate tem catálogo: `pt-BR` e `en-US`. A lista já ofereceu es, fr
+ * e de, e o CLI aceitava — o projeto nascia só com os dois catálogos que existem, sem
+ * dizer nada. O CLI agora recusa esses códigos; oferecer aqui seria montar um comando
+ * que falha.
+ */
+const PROJECT_LOCALES = ['pt', 'en'] as const;
 
 /** Providers ligados quando alguém responde "sim" ao login social. */
 const DEFAULT_PROVIDERS = ['google', 'github'] as const;

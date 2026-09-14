@@ -28,6 +28,7 @@ import {
 } from './recipe-bridge';
 import { readStoredQuery, writeStoredQuery } from './recipe-store';
 import { addressBarQuery, defaultState, parseRecipe, serializeRecipe } from './recipe-url';
+import { syncPlatform } from './wizard-answers';
 
 export interface CommandChip {
   flag: string;
@@ -149,10 +150,22 @@ export function useConfigurator(): ConfiguratorState {
     [update],
   );
 
-  const setFeature = useCallback(
-    (id: FeatureId, enabled: boolean) => update((draft) => void (draft.features[id] = enabled)),
-    [update],
-  );
+  /**
+   * Liga ou desliga uma feature — e mantém o painel da plataforma coerente com ela.
+   *
+   * O painel não é pergunta do assistente: vem do preset. Por isso ele tem de seguir as
+   * respostas de que depende (`syncPlatform`). Sem isso, responder "sem planos" ou
+   * "só pelo seed" num preset com painel montava um comando que o CLI recusa — um em
+   * cada quatro caminhos pelo assistente terminava num erro no terminal.
+   */
+  const setFeature = useCallback((id: FeatureId, enabled: boolean) => {
+    setState((current) => {
+      const draft = cloneRecipe(current.recipe);
+      draft.features[id] = enabled;
+      syncPlatform(draft, current.preset, id);
+      return { ...current, recipe: draft };
+    });
+  }, []);
 
   const setDriver = useCallback(
     <K extends keyof DriverSelection>(key: K, value: DriverSelection[K]) =>

@@ -16,12 +16,12 @@
   ],
   "repo": "marmottajr/dontpanic",
   "url": "https://github.com/marmottajr/dontpanic.git",
-  "tag": "v0.3.1",
-  "commit": "6bf547283c4140e97f5871a3956fa98008092af1",
-  "syncedAt": "2026-09-13T19:23:08.098Z",
+  "tag": "v0.3.2",
+  "commit": "0703c38d7bca7a8cbf3ab73a37e8fe3714785618",
+  "syncedAt": "2026-09-14T06:06:45.415Z",
   "stats": {
     "files": 512,
-    "bytes": 1875979,
-    "tarballGzipBytes": 495092
+    "bytes": 1876183,
+    "tarballGzipBytes": 495197
   }
 }

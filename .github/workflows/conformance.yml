@@ -165,6 +165,9 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
+          # O upload-artifact@v4 ignora diretórios ocultos por padrão, e os relatórios
+          # moram em `.conformance/`, `.deep-result/` e `.configurator-compile/`.
+          include-hidden-files: true
           name: conformance-${{ matrix.case }}
           path: |
             .conformance/report.json

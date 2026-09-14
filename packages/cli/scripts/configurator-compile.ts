@@ -470,9 +470,39 @@ async function prepareVariant(dir: string): Promise<StepResult[]> {
   return steps;
 }
 
-/** As checagens de verdade. Independentes entre si, então rodam em paralelo. */
-const CHECKS: [string, string, string][] = [
+/**
+ * As checagens de verdade. Independentes entre si, então rodam em paralelo.
+ *
+ * O terceiro campo é um script do `package.json` do workspace ou um binário com argumentos.
+ */
+type Check = [step: string, ws: string, command: string | { bin: string; args: string[] }];
+
+/** tsconfig que compila de fato os specs e o `test/` da API (ver o comentário em CHECKS). */
+const SPEC_TSCONFIG = 'tsconfig.configurator-specs.json';
+const SPEC_TSCONFIG_CONTENT = `${JSON.stringify(
+  {
+    extends: './tsconfig.spec.json',
+    compilerOptions: { rootDir: '.', noEmit: true },
+    include: ['src/**/*.ts', 'test/**/*.ts'],
+    exclude: ['node_modules', 'dist'],
+  },
+  null,
+  2,
+)}\n`;
+
+const CHECKS: Check[] = [
   ['api typecheck', 'apps/api', 'typecheck'],
+  // O `tsconfig.json` da API exclui `**/*.spec.ts` e `test/`: quem compila os specs é o
+  // ts-jest, na hora do `pnpm test`. Sem esta checagem a camada passava 960/960 enquanto a
+  // matriz profunda caía em specs que não compilavam — `oauth.service.spec.ts` importando
+  // uma constante de 2FA podada, `invitations.service.spec.ts` chamando um construtor
+  // com um argumento a mais. O `tsconfig.spec.json` do projeto gerado inclui src e test.
+  //
+  // E NÃO dá para chamar `tsc -p tsconfig.spec.json` direto: ele herda do `tsconfig.json` o
+  // `exclude` de `**/*.spec.ts` e sai com 0 checando zero specs (`--listFilesOnly` mostra).
+  // Por isso a checagem usa um tsconfig escrito aqui (`SPEC_TSCONFIG`), que estende o de
+  // specs e só exclui `node_modules`/`dist`.
+  ['api spec typecheck', 'apps/api', { bin: 'tsc', args: ['-p', SPEC_TSCONFIG, '--noEmit'] }],
   ['api lint', 'apps/api', 'lint'],
   ['web typecheck', 'apps/web', 'typecheck'],
   ['web lint', 'apps/web', 'lint'],
@@ -554,11 +584,23 @@ async function compileVariant(
     }
 
     result.stage = 'checagens';
-    const checks = await pool(CHECKS, opts.jobs, async ([step, ws, script]) => {
+    const checks = await pool(CHECKS, opts.jobs, async ([step, ws, command]) => {
       if (!(await pathExists(join(base.dir, ws, 'package.json')))) {
         return { step, ok: true, ms: 0, errors: [] } satisfies StepResult;
       }
-      const c = await runScript(base.dir, ws, script);
+      // O tsconfig de specs é escrito a cada variante: o rsync --delete apaga o que a
+      // variante não tem. Sem `tsconfig.spec.json` no projeto, a checagem não se aplica.
+      const project = typeof command === 'string' ? undefined : command.args[command.args.indexOf('-p') + 1];
+      if (project === SPEC_TSCONFIG) {
+        if (!(await pathExists(join(base.dir, ws, 'tsconfig.spec.json')))) {
+          return { step, ok: true, ms: 0, errors: [] } satisfies StepResult;
+        }
+        await writeFile(join(base.dir, ws, SPEC_TSCONFIG), SPEC_TSCONFIG_CONTENT);
+      }
+      const c =
+        typeof command === 'string'
+          ? await runScript(base.dir, ws, command)
+          : await runBin(base.dir, ws, command.bin, command.args);
       return { step, ok: c.ok, ms: c.ms, errors: stepErrors(c, join(base.dir, ws)) } satisfies StepResult;
     });
     result.steps.push(...checks);

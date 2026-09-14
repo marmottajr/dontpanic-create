@@ -181,6 +181,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          # O upload-artifact@v4 ignora diretórios ocultos por padrão, e os relatórios
+          # moram em `.conformance/`, `.deep-result/` e `.configurator-compile/`.
+          include-hidden-files: true
           name: resultado-${{ matrix.id }}
           path: .deep-result/${{ matrix.id }}.json
           retention-days: 7
@@ -189,6 +192,9 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
+          # O upload-artifact@v4 ignora diretórios ocultos por padrão, e os relatórios
+          # moram em `.conformance/`, `.deep-result/` e `.configurator-compile/`.
+          include-hidden-files: true
           name: conformance-${{ matrix.id }}
           # Sem node_modules nem builds: com uma matriz desse tamanho, várias pernas podem
           # falhar pela mesma causa, e cada projeto preservado com dependências passa de

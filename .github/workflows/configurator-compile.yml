@@ -147,6 +147,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          # O upload-artifact@v4 ignora diretórios ocultos por padrão, e os relatórios
+          # moram em `.conformance/`, `.deep-result/` e `.configurator-compile/`.
+          include-hidden-files: true
           name: configurator-compile-shard-${{ matrix.shard }}
           path: .configurator-compile/configurator-compile-shard-*.json
           retention-days: 14
@@ -185,6 +188,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          # O upload-artifact@v4 ignora diretórios ocultos por padrão, e os relatórios
+          # moram em `.conformance/`, `.deep-result/` e `.configurator-compile/`.
+          include-hidden-files: true
           name: resumo
           path: resumo.json
           retention-days: 14

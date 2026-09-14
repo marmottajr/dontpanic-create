@@ -1273,11 +1273,11 @@ export const filesManifest: FeatureManifest = {
   // F4(j)); tudo que a feature toca é `User.avatarUrl`, uma coluna que
   // `prisma migrate diff` regera. Nenhum índice, nenhuma policy, nenhum GRANT.
   //
-  // ARMADILHA HERDADA (map F4(b)): `@fastify/static` está declarado mas NUNCA é
-  // importado, então `LOCAL_STORAGE_PUBLIC_URL` aponta para uma rota que a API não
-  // serve — o adapter local grava arquivos que ninguém consegue buscar. Bug
-  // pré-existente. Irrelevante no nível (ii) (nada grava), mas um gerador que
-  // emitir o nível (i) PRECISA acrescentar a wiring do @fastify/static.
+  // ARMADILHA HERDADA (map F4(b)), resolvida no boilerplate v0.4.0: `@fastify/static`
+  // era declarado e nunca importado, e `LOCAL_STORAGE_PUBLIC_URL` apontava para uma rota
+  // que a API não servia. Agora `main.ts` o registra quando STORAGE_DRIVER=local, com o
+  // prefixo vindo de `infra/storage/local-static.ts`. No nível (ii) esse registro e os
+  // imports dele saem junto com o diretório — ver as costuras de `main.ts` abaixo.
 
   // `requires` VAZIO, com evidência (map F4(k)):
   //  - NÃO depende de plans: `Plan.maxStorageMb` existe e aparece na UI da
@@ -1360,13 +1360,9 @@ export const filesManifest: FeatureManifest = {
       remove: [
         // Único importador: infra/storage/s3-storage.adapter.ts (+ o jest.mock do spec).
         '@aws-sdk/client-s3',
-        // JÁ MORTO no repo base: zero imports em apps/** e packages/**. Sai em
-        // qualquer nível — achado do map F4(i), não consequência da remoção.
-        '@aws-sdk/s3-request-presigner',
         // Único import: main.ts. É o ÚNICO registro de multipart do repo.
         '@fastify/multipart',
-        // JÁ MORTO: zero imports. (Inverso: um gerador de nível (i) precisa ADICIONAR
-        // a wiring dele, porque LOCAL_STORAGE_PUBLIC_URL hoje não é servido.)
+        // Único import: main.ts, no registro do storage local (costura abaixo).
         '@fastify/static',
         // Único uso: modules/files/services/avatar.service.ts (normalização da imagem).
         // É build nativo — tirá-lo acelera de forma mensurável um `pnpm install` novo.
@@ -1374,8 +1370,6 @@ export const filesManifest: FeatureManifest = {
       ],
       // NÃO remover: @aws-sdk/client-ses (adapter de e-mail SES, outra flag),
       // @nestjs/terminus (health não sonda storage), ioredis/bullmq (queue).
-      // @fastify/rate-limit também já está morto no repo base (o throttling é
-      // @nestjs/throttler), mas pertence a outra feature — só fica registrado aqui.
     },
     // apps/web: NADA a remover. @radix-ui/react-avatar só sairia se
     // components/ui/avatar.tsx fosse apagado, e o map recomenda MANTER (o user-menu
@@ -1441,6 +1435,43 @@ export const filesManifest: FeatureManifest = {
       block: { start: 'Multipart uploads \\(avatars\\)', end: '\\}\\);' },
       reason:
         'O registro do parser multipart com o teto de 5MB (main.ts:93-96) — ÚNICO registro de multipart do repo, e o teto é imposto no parser, antes do sharp. O `end: "});"` casa a linha de fechamento do register; a linha do `limits:` não contém "});". Atenção à vizinhança: registerOAuthFormPostParser (oauth) fica logo acima — não confundir as duas costuras de bootstrap.',
+    },
+    {
+      file: 'apps/api/src/main.ts',
+      kind: 'dropBlockWithLeadingDoc',
+      // O `if` inteiro, com o comentário colado acima que o explica. O fim é a linha `  }`
+      // exata: o `await app.register(fastifyStatic, {…})` de dentro fecha com `    });`,
+      // e um fim `\}\);` cortaria o bloco no meio.
+      block: { start: "if \\(config\\.get\\('STORAGE_DRIVER'", end: '^  \\}$' },
+      reason:
+        'O registro do @fastify/static para STORAGE_DRIVER=local (boilerplate v0.4.0). Com files desligado, STORAGE_DRIVER e LOCAL_STORAGE_* saem em envKeys e infra/storage/ sai em deletePaths — o bloco leria chaves que o Env já não tem e chamaria um helper apagado, e o typecheck do projeto gerado pararia em main.ts.',
+    },
+    {
+      file: 'apps/api/src/main.ts',
+      kind: 'dropImport',
+      pattern: '@fastify/static',
+      reason: 'Único uso era o registro do storage local, removido acima; a dep sai em deps.',
+    },
+    {
+      file: 'apps/api/src/main.ts',
+      kind: 'dropImport',
+      pattern: 'infra/storage/local-static',
+      reason:
+        'O helper vive em infra/storage/, apagado por deletePaths — sobraria um import para arquivo inexistente (TS2307).',
+    },
+    {
+      file: 'apps/api/src/main.ts',
+      kind: 'dropImport',
+      pattern: '^node:path$',
+      reason:
+        'O `resolve` de node:path só existe em main.ts para o root absoluto do @fastify/static. Sem o registro ele vira import sem uso, e o lint do projeto gerado reprova.',
+    },
+    {
+      file: 'apps/api/src/config/env.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: 'expect\\(env\\.(S3_ENDPOINT|S3_PUBLIC_URL|LOCAL_STORAGE_PUBLIC_URL)\\)',
+      reason:
+        'O teste das portas 42xx (boilerplate v0.4.0) confere os defaults de S3_ENDPOINT, S3_PUBLIC_URL e LOCAL_STORAGE_PUBLIC_URL, chaves que envKeys removeu do schema: sem esta costura o spec não compila (TS2339). As outras asserções do teste — API, Redis, web e mail — continuam valendo.',
     },
 
     // ─── API: o campo avatarUrl atravessando os serviços ─────────────────────────

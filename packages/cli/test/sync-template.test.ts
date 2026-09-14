@@ -197,6 +197,26 @@ describe('applyTemplatePatches', () => {
     assert.match(content, /subtração/);
   });
 
+  it('afrouxa o piso da API também quando o boilerplate já mexeu em functions', () => {
+    // A v0.4.0 do boilerplate baixou `functions` de 100 para 98. O padrão literal `100`
+    // parou de casar em silêncio e os projetos gerados nasceram com o piso original —
+    // que as receitas menores reprovavam. O patch é sobre o piso inteiro, não sobre um
+    // número de funções específico.
+    const before = `  coverageThreshold: {
+    global: {
+      statements: 97,
+      branches: 92,
+      functions: 98,
+      lines: 97,
+    },
+  },
+`;
+    const { content, applied } = applyTemplatePatches('apps/api/jest.config.js', before);
+    assert.match(content, /functions: 90,/);
+    assert.doesNotMatch(content, /functions: 98/);
+    assert.equal(applied.length, 1);
+  });
+
   it('afrouxa também os thresholds do web (0,5 ponto de margem)', () => {
     const before = `      thresholds: {
         statements: 99,

@@ -172,152 +172,24 @@ export const scaffoldingManifest: FeatureManifest = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// A3.2 — deps declaradas e nunca importadas (mapa 5096-5101)
+// A3.2, A3.3 e I17 — resolvidos no próprio boilerplate (v0.4.0)
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// Três consertos que o gerador aplicava em qualquer configuração saíram daqui porque o
+// boilerplate os fez de verdade (PRs #38 e #39). Mantê-los seria editar código que já não
+// tem o defeito — e as costuras deixaram de casar, que é o gerador parando de propósito
+// para isto ser revisto em vez de silenciado:
+//  - A3.2, deps fantasma: `@aws-sdk/s3-request-presigner` e `@fastify/rate-limit` saíram do
+//    `apps/api/package.json`, e a exceção de `minimumReleaseAgeExclude` do presigner com
+//    eles. `@fastify/static` deixou de ser fantasma (ver I17).
+//  - A3.3, `minimumReleaseAge`: o `pnpm-workspace.yaml` configura a política (4320 minutos)
+//    e o `CLAUDE.md` descreve o que existe. A frase deixou de ser falsa, então fica.
+//  - I17, storage `local` sem static serving: `main.ts` registra o `@fastify/static` quando
+//    STORAGE_DRIVER=local, com o prefixo derivado de LOCAL_STORAGE_PUBLIC_URL em
+//    `infra/storage/local-static.ts`. Reaplicar a costura registraria o plugin duas vezes.
+//    O que sobra para o gerador é o caminho inverso — `files` desligado leva o registro
+//    junto —, e isso vive no manifesto de `files`.
 
-/** Deps fantasma do A3.2 — saem em QUALQUER configuração. */
-export const GHOST_DEPS: { workspace: string; remove: string[] }[] = [
-  {
-    workspace: 'apps/api',
-    remove: [
-      // `apps/api/package.json:38`. Zero imports no repo inteiro — o que também
-      // significa que `LOCAL_STORAGE_PUBLIC_URL` (`env.ts:70`) aponta para uma rota
-      // que a API nunca serve. Confirmado no repo vivo: `grep -rn "fastify/static"`
-      // em apps/ e packages/ não retorna nada.
-      // ⚠️ VOLTA com storage `local` — ver LOCAL_STORAGE_STATIC_FIX (I17).
-      '@fastify/static',
-
-      // `apps/api/package.json:37`. Zero imports; o throttling é `@nestjs/throttler`
-      // (guard global em `app.module.ts`, contadores no Redis pela porta de cache).
-      // Manter a dep sugere uma segunda camada de rate limit que não existe.
-      '@fastify/rate-limit',
-
-      // `apps/api/package.json:30`. Zero imports: o adapter S3 usa só
-      // `@aws-sdk/client-s3` (PutObject/DeleteObject) e nunca gera URL pré-assinada
-      // — os avatares são públicos via `getPublicUrl`. Sai junto a linha de
-      // `minimumReleaseAgeExclude` em `pnpm-workspace.yaml:39` (ver GHOST_DEP_SEAMS).
-      '@aws-sdk/s3-request-presigner',
-    ],
-  },
-];
-
-/** Costuras que acompanham a remoção das deps fantasma (ex.: pnpm-workspace.yaml). */
-export const GHOST_DEP_SEAMS: SeamEdit[] = [
-  {
-    // mapa 5101 ("also drop `pnpm-workspace.yaml:39`"). Verificado no repo vivo:
-    // a linha 39 é `- '@aws-sdk/s3-request-presigner@3.1068.0'`, dentro de
-    // `minimumReleaseAgeExclude`. É a ÚNICA menção às três deps fantasma fora do
-    // package.json (nem `@fastify/static` nem `@fastify/rate-limit` aparecem em
-    // overrides, allowBuilds ou onlyBuiltDependencies).
-    file: 'pnpm-workspace.yaml',
-    kind: 'dropLinesMatching',
-    pattern: '@aws-sdk/s3-request-presigner@[\\d.]+',
-    reason:
-      'A exceção de minimumReleaseAgeExclude existe só para permitir instalar uma versão recém-publicada desta dep; sem a dep, a linha é uma exceção de supply-chain pendurada num pacote que o projeto não usa mais — ruído que o próximo leitor interpreta como "alguém precisou afrouxar isso por um motivo" (mapa 5101).',
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// I17 — storage `local` sem static serving (mapa 5238, nota em 5303)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * I17: com storage `local`, `@fastify/static` volta e precisa ser REGISTRADO.
- *
- * Substância do I17, verbatim-em-substância: "`@fastify/static` é declarado
- * (`package.json:38`) mas nunca importado, então `LOCAL_STORAGE_PUBLIC_URL` aponta
- * para uma rota que a API não serve — avatares dão 404. Ao emitir storage local-only,
- * **adicione** a fiação do `@fastify/static`; é um bug pré-existente, não do gerador."
- *
- * Isto é a única exceção declarada ao "só subtrair" da decisão 0001: o gerador tem a
- * chance de não propagar um defeito do repo base, e o preço de propagá-lo é um projeto
- * gerado em que todo avatar enviado dá 404.
- */
-export const LOCAL_STORAGE_STATIC_FIX = {
-  /** Condição de aplicação, para o `apply.ts` avaliar: `recipe.drivers.storage === 'local'`. */
-  appliesWhen: { driver: 'storage', equals: 'local' } as const,
-
-  /** Provenância no mapa. */
-  provenance: 'feature-surface.md:5238 (I17), 5099 (A3.2), 5303',
-
-  /**
-   * A dep volta para o workspace da API — anulando a remoção de GHOST_DEPS.
-   * `apply.ts` tem que aplicar este re-add DEPOIS do pruning de deps fantasma.
-   * Versão do boilerplate hoje: `^10.1.3` (`apps/api/package.json:38`).
-   */
-  readdDeps: [{ workspace: 'apps/api', add: ['@fastify/static'], version: '^10.1.3' }],
-
-  /** O arquivo que recebe a fiação: o bootstrap do Fastify. */
-  file: 'apps/api/src/main.ts',
-
-  /**
-   * Duas costuras, ambas INSERÇÕES expressas como `replace` re-emitindo a âncora,
-   * porque o contrato atual só tem kinds subtrativos. Ver "NEW SEAMKINDS NEEDED".
-   *
-   * Âncoras escolhidas de propósito entre o que é ESPINHA (mapa 191, 98-100):
-   *  - o import do `@fastify/helmet` (core, sempre presente) e não o do
-   *    `@fastify/multipart`, que é da feature `files` e pode ter sido apagado;
-   *  - o `app.enableCors(` (core) e não o bloco de multipart, pelo mesmo motivo.
-   */
-  seams: [
-    {
-      file: 'apps/api/src/main.ts',
-      kind: 'replace',
-      pattern: "import\\s+helmet\\s+from\\s+'@fastify/helmet';",
-      replacement:
-        "import { resolve } from 'node:path';\nimport helmet from '@fastify/helmet';\nimport fastifyStatic from '@fastify/static';",
-      reason:
-        'Ancorado no import do helmet porque ele é espinha do bootstrap (mapa 191) — ancorar no @fastify/multipart falharia exatamente na combinação em que o fix importa (storage local com a feature files reduzida), e `resolve` entra junto porque o @fastify/static exige root absoluto.',
-    },
-    {
-      file: 'apps/api/src/main.ts',
-      kind: 'replace',
-      pattern: 'app\\.enableCors\\(',
-      replacement: [
-        '// I17: LOCAL_STORAGE_PUBLIC_URL aponta para uma rota que a API não servia.',
-        '// Registrado no Fastify, não no Nest: setGlobalPrefix(\'api\') não se aplica a',
-        '// plugin, então o prefixo casa com o pathname da própria env.',
-        'const localPublic = new URL(config.get(\'LOCAL_STORAGE_PUBLIC_URL\', { infer: true }));',
-        'await app.register(fastifyStatic, {',
-        "  root: resolve(config.get('LOCAL_STORAGE_DIR', { infer: true })),",
-        "  prefix: localPublic.pathname.replace(/\\/?$/, '/'),",
-        '  index: false,',
-        '  decorateReply: false,',
-        '});',
-        '',
-        'app.enableCors(',
-      ].join('\n'),
-      reason:
-        'Sem este registro o adapter local grava o arquivo em LOCAL_STORAGE_DIR e devolve uma URL que ninguém serve — todo avatar enviado dá 404 (I17, mapa 5238); o prefixo é derivado do pathname de LOCAL_STORAGE_PUBLIC_URL em vez de fixado em /files para os dois lados não poderem divergir em silêncio, que é a mesma armadilha de CAPTCHA_DRIVER/NEXT_PUBLIC_CAPTCHA_DRIVER.',
-    },
-  ] satisfies SeamEdit[],
-
-  /**
-   * ⚠️ O snippet acima é INFERÊNCIA de melhor-evidência, não texto do mapa.
-   * O mapa diz *que* a fiação falta e *por que* (I17 + A3.2), nunca o código.
-   * Evidência usada:
-   *  - `LocalStorageAdapter` documenta ele mesmo: "Serve `dir` statically to expose publicUrl";
-   *  - `.env.example:29` → `http://localhost:4201/files` (pathname `/files`);
-   *  - `main.ts:41` → `app.setGlobalPrefix('api')` só afeta controllers do Nest,
-   *    então o plugin serve em `/files/...` e a env continua verdadeira.
-   */
-  snippetIsInference: true,
-
-  notes: [
-    // Defeito PRÉ-EXISTENTE adjacente, encontrado ao conferir I17: o default de
-    // `env.ts:70` é `http://localhost:3001/files` enquanto a API roda em 4201 e o
-    // `.env.example:29` diz 4201. Quem sobe com o default (sem .env) ganha avatar
-    // apontando para uma porta onde não há nada. Fica fora dos seams porque a
-    // lógica de portas 42xx é do gerador, não desta feature.
-    'env.ts:70 tem default de porta 3001, divergente do .env.example:29 (4201) — decidir com o dono da lógica de portas.',
-    // O avatar é carregado pelo browser direto da API (é `<img src>` com URL
-    // absoluta), o que é o mesmo que já acontece com S3/MinIO — não viola a regra
-    // "nunca fale com a API sem passar pelo BFF", que é sobre chamadas de dados.
-    'A URL pública é consumida por <img src>, direto, como no driver s3 — não passa pelo BFF por construção.',
-  ],
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Extra: o item de A3.1 que NÃO é desta feature
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -351,39 +223,6 @@ export const CHARTS_ORPHAN_WHEN_PLATFORM_OFF = {
     },
   ] satisfies SeamEdit[],
 };
-
-/**
- * Correções de VERDADE na documentação, aplicadas em QUALQUER configuração.
- *
- * Não pertencem a feature nenhuma: são afirmações que o `CLAUDE.md` do boilerplate faz e
- * que o repo não sustenta — a categoria A3.3 do mapa ("documented guarantees that are not
- * actually wired", mapa 5104-5117). Um gerador que poda features com cuidado e ainda
- * propaga uma garantia inexistente está entregando a pior parte do boilerplate: o projeto
- * gerado afirma ter uma proteção que não tem, e quem ler o `CLAUDE.md` — humano ou agente —
- * vai tomar decisão contando com ela.
- *
- * O caso concreto: o `pnpm-workspace.yaml` tem `minimumReleaseAgeExclude` (a lista de
- * exceções) e NÃO tem `minimumReleaseAge` (a política). Ou seja, existe a lista de quem
- * está isento de uma regra que nunca foi escrita, e o `CLAUDE.md:495` afirma que a regra
- * evita adotar releases recém-publicados. Não evita nada. A frase é reescrita para dizer o
- * que é verdade e o que falta fazer — em vez de apagada, porque a intenção documentada é
- * útil e o conserto é de uma linha no `pnpm-workspace.yaml`.
- */
-export const DOC_TRUTH_SEAMS: SeamEdit[] = [
-  {
-    file: 'CLAUDE.md',
-    kind: 'replace',
-    pattern:
-      '`minimumReleaseAge` no `pnpm-workspace\\.yaml` evita adotar releases recém-publicados \\(supply-chain\\)\\.',
-    replacement:
-      '`minimumReleaseAge` no `pnpm-workspace.yaml` **ainda não está configurado** — só a lista ' +
-      '`minimumReleaseAgeExclude` existe, então hoje não há atraso nenhum na adoção de release ' +
-      'novo. Para ligar a proteção de supply-chain de fato, acrescente `minimumReleaseAge: 1440` ' +
-      '(minutos) ao `pnpm-workspace.yaml`; a lista de exceções já está lá esperando.',
-    reason:
-      'A3.3 do mapa (5104-5117): garantia documentada e não implementada. `pnpm-workspace.yaml` declara `minimumReleaseAgeExclude` sem `minimumReleaseAge`, então a política que a frase promete não existe — há só a lista de isentos de uma regra ausente. Propagar a frase entrega um projeto que AFIRMA ter proteção de supply-chain e não tem, que é pior que não afirmar nada. Se a costura deixar de casar, confira se o boilerplate finalmente configurou a política (aí a frase fica) ou se só reescreveu o texto.',
-  },
-];
 
 /**
  * Arquivos que só ficam órfãos quando um PAR de features sai junto.

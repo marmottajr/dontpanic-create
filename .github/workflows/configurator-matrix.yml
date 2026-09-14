@@ -1,0 +1,286 @@
+name: Matriz profunda do configurador
+
+# A conformidade (conformance.yml) prova oito receitas escolhidas à mão. Esta prova as
+# INTERAÇÕES: um covering array em que toda combinação de três respostas do assistente, e
+# todo par com os drivers que um link compartilhado permite, aparece em pelo menos um
+# projeto gerado — que então instala, compila, passa no lint, nos testes e no e2e.
+#
+# A matriz vem de packages/cli/conformance/deep-matrix.json, gerado e verificado por
+# packages/cli/scripts/configurator-deep-matrix.ts. Só `workflow_dispatch`: são ~100
+# projetos a ~12 min cada, e isso não cabe em todo push. É a rodada que se pede antes de
+# um release, ou depois de mexer no assistente ou no manifesto de features.
+
+on:
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: 'Incluir a suíte e2e (Postgres + navegador; é onde o isolamento entre empresas é provado)'
+        type: boolean
+        default: true
+      only:
+        description: 'Rodar só um caso (id do deep-matrix.json, ex.: cfg-042)'
+        required: false
+        default: ''
+
+jobs:
+  plan:
+    name: Planejar a matriz
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      lote1: ${{ steps.ids.outputs.lote1 }}
+      total: ${{ steps.ids.outputs.total }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Antes de gastar horas de runner: o JSON versionado ainda é o que o gerador produz
+      # hoje, e cobre todas as tuplas? Uma matriz velha testaria comandos que a landing já
+      # não monta, e passaria verde sem provar nada. O gerador só importa `src/` do CLI,
+      # que não tem dependência de runtime — por isso não precisa de `pnpm install`.
+      - name: Verificar a cobertura e a atualidade do deep-matrix.json
+        run: node --experimental-strip-types packages/cli/scripts/configurator-deep-matrix.ts --check
+
+      # O GitHub limita uma matriz a 256 jobs, e a de hoje tem 72 casos. Um segundo lote só
+      # seria preciso acima disso — e reusar os passos entre dois jobs pediria âncoras YAML,
+      # que custam o workflow inteiro se o parser do Actions as recusar. Então um lote só, e
+      # o planejamento falha dizendo o que fazer no dia em que a matriz passar do limite.
+      - name: Emitir os ids
+        id: ids
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+          const cases = JSON.parse(fs.readFileSync('packages/cli/conformance/deep-matrix.json', 'utf8'));
+          let ids = cases.map((c) => c.id);
+          const only = (process.env.ONLY ?? '').trim();
+          if (only !== '') {
+            if (!ids.includes(only)) {
+              console.error(`Nenhum caso com id "${only}" no deep-matrix.json.`);
+              process.exit(1);
+            }
+            ids = [only];
+          }
+          const LIMIT = 256;
+          if (ids.length > LIMIT) {
+            console.error(`${ids.length} casos: acima do limite de ${LIMIT} jobs por matriz. Divida a matriz em lotes (um job por lote).`);
+            process.exit(1);
+          }
+          const out = [`lote1=${JSON.stringify(ids)}`, `total=${ids.length}`];
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join('\n') + '\n');
+          console.log(`${ids.length} caso(s) planejado(s).`);
+          EOF
+
+  deep-1:
+    name: ${{ matrix.id }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      # Sem fail-fast: o valor da matriz é justamente ver TODAS as interações que quebram
+      # numa execução só, e agrupá-las pela causa.
+      fail-fast: false
+      # 20 de cada vez: o bastante para a matriz inteira caber numa manhã, sem ocupar
+      # todos os runners da conta e travar o CI dos PRs enquanto roda.
+      max-parallel: 20
+      matrix:
+        id: ${{ fromJSON(needs.plan.outputs.lote1) }}
+
+    # Serviços e passos são os do conformance.yml (os comentários do PORQUÊ de cada porta e
+    # imagem estão lá).
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['4202:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:8-alpine
+        ports: ['4203:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Ler a tag do boilerplate declarada no template.json
+        id: template
+        run: |
+          REF="$(node -p "require('./packages/cli/template.json').tag")"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout do boilerplate, na tag declarada
+        uses: actions/checkout@v7
+        with:
+          repository: marmottajr/dontpanic
+          ref: ${{ steps.template.outputs.ref }}
+          path: .boilerplate
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache do navegador do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Materializar o template
+        # Caminho absoluto: `pnpm --filter` roda com cwd em packages/cli.
+        run: pnpm sync-template --from="$GITHUB_WORKSPACE/.boilerplate"
+
+      - run: pnpm --filter create-dontpanic build
+
+      - name: Conformidade do caso
+        # O `--cases-file` pode ser relativo à raiz: a conformidade resolve contra o
+        # diretório onde o pnpm foi chamado (INIT_CWD) antes do cwd do pacote.
+        run: |
+          pnpm --filter create-dontpanic conformance \
+            --cases-file=packages/cli/conformance/deep-matrix.json \
+            --case=${{ matrix.id }} \
+            ${{ inputs.e2e && '--e2e' || '' }}
+        env:
+          CONFORMANCE_PG_ADMIN_URL: postgresql://postgres:postgres@localhost:4202/postgres
+          CONFORMANCE_REDIS_URL: redis://localhost:4203
+
+      # O resumo final precisa saber o resultado de CADA caso, e `needs.<job>.result` de
+      # uma matriz é um só para todas as pernas. Cada perna deixa um recibo de uma linha;
+      # a perna que nem chega aqui (runner perdido, cancelamento) aparece como "sem
+      # resultado", que é diferente de "passou".
+      - name: Registrar o resultado do caso
+        if: always()
+        run: |
+          mkdir -p .deep-result
+          printf '{"id":"%s","status":"%s"}\n' "${{ matrix.id }}" "${{ job.status }}" > ".deep-result/${{ matrix.id }}.json"
+
+      - name: Enviar o recibo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-${{ matrix.id }}
+          path: .deep-result/${{ matrix.id }}.json
+          retention-days: 7
+
+      - name: Guardar o relatório e o projeto que falhou
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-${{ matrix.id }}
+          # Sem node_modules nem builds: com uma matriz desse tamanho, várias pernas podem
+          # falhar pela mesma causa, e cada projeto preservado com dependências passa de
+          # 1 GB. O código gerado e o relatório são o que se depura; as dependências se
+          # reinstalam.
+          path: |
+            .conformance/report.json
+            /tmp/dp-conformance-*/
+            !/tmp/dp-conformance-*/**/node_modules/**
+            !/tmp/dp-conformance-*/**/.next/**
+            !/tmp/dp-conformance-*/**/dist/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+  summary:
+    name: Resumo
+    needs: [plan, deep-1]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: packages/cli/conformance
+          sparse-checkout-cone-mode: false
+
+      - name: Baixar os recibos
+        uses: actions/download-artifact@v4
+        with:
+          pattern: resultado-*
+          path: .deep-result
+          merge-multiple: true
+
+      - name: Escrever o resumo
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          LOTE1: ${{ needs.plan.outputs.lote1 }}
+          E2E: ${{ inputs.e2e }}
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+          const summary = process.env.GITHUB_STEP_SUMMARY;
+          const write = (line = '') => fs.appendFileSync(summary, line + '\n');
+
+          if (process.env.PLAN_RESULT !== 'success') {
+            write('## Matriz profunda do configurador');
+            write('');
+            write(`O planejamento falhou (\`${process.env.PLAN_RESULT}\`): nenhum caso rodou. Veja o job "Planejar a matriz".`);
+            process.exit(1);
+          }
+
+          const planned = JSON.parse(process.env.LOTE1 || '[]');
+          const cases = new Map(
+            JSON.parse(fs.readFileSync('packages/cli/conformance/deep-matrix.json', 'utf8')).map((c) => [c.id, c]),
+          );
+          const results = new Map();
+          if (fs.existsSync('.deep-result')) {
+            for (const file of fs.readdirSync('.deep-result')) {
+              const r = JSON.parse(fs.readFileSync(`.deep-result/${file}`, 'utf8'));
+              results.set(r.id, r.status);
+            }
+          }
+
+          const passed = planned.filter((id) => results.get(id) === 'success');
+          const failed = planned.filter((id) => results.has(id) && results.get(id) !== 'success');
+          const missing = planned.filter((id) => !results.has(id));
+
+          write('## Matriz profunda do configurador');
+          write('');
+          write(`e2e: **${process.env.E2E === 'true' ? 'sim' : 'não'}** · planejados: **${planned.length}**`);
+          write('');
+          write('| resultado | casos |');
+          write('| --- | ---: |');
+          write(`| passou | ${passed.length} |`);
+          write(`| falhou | ${failed.length} |`);
+          write(`| sem resultado (cancelado ou runner perdido) | ${missing.length} |`);
+
+          const table = (title, ids) => {
+            if (ids.length === 0) return;
+            write('');
+            write(`### ${title}`);
+            write('');
+            write('| id | status | receita | comando |');
+            write('| --- | --- | --- | --- |');
+            for (const id of ids) {
+              const c = cases.get(id);
+              const cmd = c ? `\`npx create-dontpanic "${c.projectName}" ${c.flags.join(' ')}\`` : '?';
+              write(`| ${id} | ${results.get(id) ?? '—'} | ${c?.resumo ?? '?'} | ${cmd} |`);
+            }
+          };
+          table('Falharam', failed);
+          table('Sem resultado', missing);
+
+          if (failed.length > 0 || missing.length > 0) process.exit(1);
+          EOF

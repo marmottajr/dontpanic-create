@@ -1,0 +1,723 @@
+[
+  {
+    "id": "preset-minimal",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal"],
+    "e2e": true,
+    "resumo": "minimal · single-tenant · só seed · sem oauth · sem 2FA · só pt · sem planos · sem arquivos · sem painel · sem captcha · storage=local · mail=smtp · cache=memory · queue=memory",
+    "respostas": [
+      {"preset":"minimal","multiTenant":false,"entry":"seed","social":"off","twoFactor":false,"languages":"one","plans":false,"files":false,"captcha":false,"storage":"local","mail":"smtp","cache":"memory","queue":"memory","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "preset-saas",
+    "projectName": "Acme Corp",
+    "flags": [],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · sem oauth · 2FA · pt+en · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"off","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "preset-complete",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · cadastro aberto · oauth=google+apple+github · 2FA · pt+en · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"open","social":"google+apple+github","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "preset-internal",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · só convite · sem oauth · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=local · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"invite","social":"off","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"local","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "nome-acentuado",
+    "projectName": "Ação Rápida",
+    "flags": [],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · sem oauth · 2FA · pt+en · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"off","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "nome-camelcase",
+    "projectName": "MinhaLoja",
+    "flags": [],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · sem oauth · 2FA · pt+en · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"off","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "sem-captcha",
+    "projectName": "Acme Corp",
+    "flags": ["--captcha=none"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · sem oauth · 2FA · pt+en · planos · arquivos · painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"off","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "captcha-sem-multi-tenancy",
+    "projectName": "Acme Corp",
+    "flags": ["--no-multi-tenant","--no-platform"],
+    "e2e": true,
+    "resumo": "saas · single-tenant · só convite · sem oauth · 2FA · pt+en · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":false,"entry":"open","social":"off","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-001",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--oauth=google","--invitations","--i18n=pt,en","--no-queue","--captcha=recaptcha-v3","--storage=s3","--mail=ses"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só convite · oauth=google · sem 2FA · pt+en · sem planos · sem arquivos · sem painel · captcha=recaptcha-v3 · storage=s3 · mail=ses · cache=memory · sem fila",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"invite","social":"google","twoFactor":false,"languages":"many","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"ses","cache":"memory","queue":"off","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-002",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-multi-tenant","--no-2fa","--oauth=github","--no-invitations","--no-files","--no-platform","--i18n=pt,en","--queue=memory","--captcha=recaptcha-v2","--storage=s3","--mail=console"],
+    "e2e": true,
+    "resumo": "internal · single-tenant · só seed · oauth=github · sem 2FA · pt+en · planos · sem arquivos · sem painel · captcha=recaptcha-v2 · storage=s3 · mail=console · cache=redis · queue=memory",
+    "respostas": [
+      {"preset":"internal","multiTenant":false,"entry":"seed","social":"github","twoFactor":false,"languages":"many","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"console","cache":"redis","queue":"memory","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-003",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-multi-tenant","--oauth=apple","--no-invitations","--no-public-signup","--no-platform","--no-plans","--i18n=false","--no-queue","--captcha=recaptcha-v2","--storage=local","--mail=ses"],
+    "e2e": true,
+    "resumo": "complete · single-tenant · só seed · oauth=apple · 2FA · só pt · sem planos · arquivos · sem painel · captcha=recaptcha-v2 · storage=local · mail=ses · cache=redis · sem fila",
+    "respostas": [
+      {"preset":"complete","multiTenant":false,"entry":"seed","social":"apple","twoFactor":true,"languages":"one","plans":false,"files":true,"captcha":true,"storage":"local","mail":"ses","cache":"redis","queue":"off","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-004",
+    "projectName": "Acme Corp",
+    "flags": ["--no-2fa","--oauth=github","--no-platform","--no-plans","--i18n=false","--no-queue","--captcha=none","--storage=local","--mail=console","--cache=memory"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · oauth=github · sem 2FA · só pt · sem planos · arquivos · sem painel · sem captcha · storage=local · mail=console · cache=memory · sem fila",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"github","twoFactor":false,"languages":"one","plans":false,"files":true,"captcha":false,"storage":"local","mail":"console","cache":"memory","queue":"off","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-005",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-multi-tenant","--oauth=google,apple,github","--no-files","--no-platform","--no-plans","--i18n=pt,en","--captcha=none","--mail=console","--cache=memory"],
+    "e2e": true,
+    "resumo": "internal · single-tenant · só convite · oauth=google+apple+github · 2FA · pt+en · sem planos · sem arquivos · sem painel · sem captcha · storage=local · mail=console · cache=memory · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":false,"entry":"invite","social":"google+apple+github","twoFactor":true,"languages":"many","plans":false,"files":false,"captcha":false,"storage":"local","mail":"console","cache":"memory","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-006",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-2fa","--oauth=apple","--no-public-signup","--no-files","--i18n=false","--queue=memory","--captcha=none","--mail=ses","--cache=memory"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só convite · oauth=apple · sem 2FA · só pt · planos · sem arquivos · painel · sem captcha · storage=s3 · mail=ses · cache=memory · queue=memory",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"invite","social":"apple","twoFactor":false,"languages":"one","plans":true,"files":false,"captcha":false,"storage":"s3","mail":"ses","cache":"memory","queue":"memory","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-007",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--2fa","--oauth=google","--invitations","--public-signup","--plans","--captcha=recaptcha-v3","--mail=console","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · single-tenant · só convite · oauth=google · 2FA · só pt · planos · sem arquivos · sem painel · captcha=recaptcha-v3 · storage=local · mail=console · cache=redis · queue=memory",
+    "respostas": [
+      {"preset":"minimal","multiTenant":false,"entry":"open","social":"google","twoFactor":true,"languages":"one","plans":true,"files":false,"captcha":true,"storage":"local","mail":"console","cache":"redis","queue":"memory","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-008",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=google","--files","--plans","--i18n=pt,en","--queue=bullmq","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só seed · oauth=google · 2FA · pt+en · planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"seed","social":"google","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-009",
+    "projectName": "Acme Corp",
+    "flags": ["--no-2fa","--oauth=google,apple,github","--no-invitations","--no-public-signup","--no-files","--no-platform","--no-plans","--i18n=false","--mail=ses"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só seed · oauth=google+apple+github · sem 2FA · só pt · sem planos · sem arquivos · sem painel · captcha=turnstile · storage=s3 · mail=ses · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"seed","social":"google+apple+github","twoFactor":false,"languages":"one","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"ses","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-010",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-multi-tenant","--no-2fa","--oauth=apple","--public-signup","--no-platform","--no-plans","--i18n=pt,en","--captcha=none","--storage=s3","--mail=ses"],
+    "e2e": true,
+    "resumo": "internal · single-tenant · só convite · oauth=apple · sem 2FA · pt+en · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=ses · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":false,"entry":"open","social":"apple","twoFactor":false,"languages":"many","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"ses","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-011",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-multi-tenant","--no-2fa","--oauth=github","--no-public-signup","--no-platform","--no-plans","--captcha=recaptcha-v3"],
+    "e2e": true,
+    "resumo": "complete · single-tenant · só convite · oauth=github · sem 2FA · pt+en · sem planos · arquivos · sem painel · captcha=recaptcha-v3 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":false,"entry":"invite","social":"github","twoFactor":false,"languages":"many","plans":false,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-012",
+    "projectName": "Acme Corp",
+    "flags": ["--no-multi-tenant","--oauth=github","--no-public-signup","--no-files","--no-platform","--i18n=false","--queue=memory","--captcha=none"],
+    "e2e": true,
+    "resumo": "saas · single-tenant · só convite · oauth=github · 2FA · só pt · planos · sem arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=memory",
+    "respostas": [
+      {"preset":"saas","multiTenant":false,"entry":"invite","social":"github","twoFactor":true,"languages":"one","plans":true,"files":false,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"memory","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-013",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--oauth=apple","--public-signup","--no-files","--no-platform","--no-plans","--i18n=pt,en","--no-queue","--captcha=recaptcha-v2","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · cadastro aberto · oauth=apple · 2FA · pt+en · sem planos · sem arquivos · sem painel · captcha=recaptcha-v2 · storage=s3 · mail=smtp · cache=redis · sem fila",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"open","social":"apple","twoFactor":true,"languages":"many","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"off","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-014",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--oauth=google,apple,github","--invitations","--files","--plans","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · single-tenant · só convite · oauth=google+apple+github · sem 2FA · só pt · planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=memory",
+    "respostas": [
+      {"preset":"minimal","multiTenant":false,"entry":"invite","social":"google+apple+github","twoFactor":false,"languages":"one","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"memory","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-015",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=false","--no-invitations","--no-public-signup","--no-files","--no-platform","--no-plans","--no-queue","--captcha=recaptcha-v3","--mail=ses"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só seed · sem oauth · 2FA · pt+en · sem planos · sem arquivos · sem painel · captcha=recaptcha-v3 · storage=s3 · mail=ses · cache=redis · sem fila",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"seed","social":"off","twoFactor":true,"languages":"many","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"ses","cache":"redis","queue":"off","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-016",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-multi-tenant","--no-2fa","--oauth=google","--no-invitations","--no-platform","--no-plans","--captcha=none","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · single-tenant · só seed · oauth=google · sem 2FA · só pt · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":false,"entry":"seed","social":"google","twoFactor":false,"languages":"one","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-017",
+    "projectName": "Acme Corp",
+    "flags": ["--no-multi-tenant","--no-2fa","--oauth=apple","--no-invitations","--no-public-signup","--no-files","--no-platform","--no-queue","--mail=console"],
+    "e2e": true,
+    "resumo": "saas · single-tenant · só seed · oauth=apple · sem 2FA · pt+en · planos · sem arquivos · sem painel · captcha=turnstile · storage=s3 · mail=console · cache=redis · sem fila",
+    "respostas": [
+      {"preset":"saas","multiTenant":false,"entry":"seed","social":"apple","twoFactor":false,"languages":"many","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"console","cache":"redis","queue":"off","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-018",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=github","--invitations","--public-signup","--files","--i18n=pt,en","--queue=bullmq","--captcha=turnstile","--storage=s3","--mail=ses","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · cadastro aberto · oauth=github · 2FA · pt+en · sem planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=ses · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"open","social":"github","twoFactor":true,"languages":"many","plans":false,"files":true,"captcha":true,"storage":"s3","mail":"ses","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-019",
+    "projectName": "Acme Corp",
+    "flags": ["--no-multi-tenant","--oauth=google","--no-public-signup","--no-platform","--no-plans","--captcha=recaptcha-v2"],
+    "e2e": true,
+    "resumo": "saas · single-tenant · só convite · oauth=google · 2FA · pt+en · sem planos · arquivos · sem painel · captcha=recaptcha-v2 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":false,"entry":"invite","social":"google","twoFactor":true,"languages":"many","plans":false,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-020",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-multi-tenant","--no-2fa","--no-files","--no-platform","--i18n=false","--no-queue","--captcha=none"],
+    "e2e": true,
+    "resumo": "complete · single-tenant · só convite · oauth=google+apple+github · sem 2FA · só pt · planos · sem arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · sem fila",
+    "respostas": [
+      {"preset":"complete","multiTenant":false,"entry":"open","social":"google+apple+github","twoFactor":false,"languages":"one","plans":true,"files":false,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"off","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-021",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=github","--no-invitations","--no-public-signup","--no-platform","--i18n=false","--captcha=none","--mail=console"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só seed · oauth=github · 2FA · só pt · planos · arquivos · sem painel · sem captcha · storage=s3 · mail=console · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"seed","social":"github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"console","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-022",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--2fa","--oauth=apple","--invitations","--files","--plans","--i18n=pt,en","--queue=bullmq","--captcha=recaptcha-v2","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · single-tenant · só convite · oauth=apple · 2FA · pt+en · planos · arquivos · sem painel · captcha=recaptcha-v2 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":false,"entry":"invite","social":"apple","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-023",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-2fa","--public-signup","--no-files","--captcha=recaptcha-v2","--storage=s3","--mail=console"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · cadastro aberto · sem oauth · sem 2FA · só pt · planos · sem arquivos · painel · captcha=recaptcha-v2 · storage=s3 · mail=console · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"open","social":"off","twoFactor":false,"languages":"one","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"console","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-024",
+    "projectName": "Acme Corp",
+    "flags": ["--no-multi-tenant","--oauth=google,apple,github","--no-invitations","--no-public-signup","--no-platform","--captcha=none"],
+    "e2e": true,
+    "resumo": "saas · single-tenant · só seed · oauth=google+apple+github · 2FA · pt+en · planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":false,"entry":"seed","social":"google+apple+github","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-025",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-multi-tenant","--no-2fa","--oauth=false","--no-public-signup","--no-platform","--no-plans","--captcha=none"],
+    "e2e": true,
+    "resumo": "complete · single-tenant · só convite · sem oauth · sem 2FA · pt+en · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":false,"entry":"invite","social":"off","twoFactor":false,"languages":"many","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-026",
+    "projectName": "Acme Corp",
+    "flags": ["--no-2fa","--oauth=google","--no-public-signup","--no-files","--i18n=false","--captcha=none"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só convite · oauth=google · sem 2FA · só pt · planos · sem arquivos · painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"invite","social":"google","twoFactor":false,"languages":"one","plans":true,"files":false,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-027",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-2fa","--oauth=google","--no-platform","--no-plans","--captcha=none"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · cadastro aberto · oauth=google · sem 2FA · pt+en · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"open","social":"google","twoFactor":false,"languages":"many","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-028",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=google,apple,github","--invitations","--files","--queue=bullmq","--captcha=recaptcha-v2","--storage=s3"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só convite · oauth=google+apple+github · 2FA · só pt · sem planos · arquivos · sem painel · captcha=recaptcha-v2 · storage=s3 · mail=smtp · cache=memory · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"invite","social":"google+apple+github","twoFactor":true,"languages":"one","plans":false,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"memory","queue":"bullmq","captchaDriver":"recaptcha-v2"}
+    ]
+  },
+  {
+    "id": "cfg-029",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--oauth=apple","--no-invitations","--no-platform","--captcha=none","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · só seed · oauth=apple · 2FA · só pt · planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"seed","social":"apple","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-030",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-multi-tenant","--oauth=google","--no-invitations","--no-public-signup","--no-files","--no-platform","--i18n=false"],
+    "e2e": true,
+    "resumo": "complete · single-tenant · só seed · oauth=google · 2FA · só pt · planos · sem arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":false,"entry":"seed","social":"google","twoFactor":true,"languages":"one","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-031",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--oauth=github","--invitations","--public-signup","--plans","--queue=bullmq","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · single-tenant · só convite · oauth=github · sem 2FA · só pt · planos · sem arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":false,"entry":"open","social":"github","twoFactor":false,"languages":"one","plans":true,"files":false,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-032",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--files","--plans","--i18n=pt,en","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só seed · sem oauth · 2FA · pt+en · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"seed","social":"off","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-033",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--oauth=github","--no-files","--no-platform","--no-plans","--captcha=recaptcha-v3","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · só convite · oauth=github · 2FA · só pt · sem planos · sem arquivos · sem painel · captcha=recaptcha-v3 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"invite","social":"github","twoFactor":true,"languages":"one","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-034",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=apple","--i18n=false","--queue=memory","--cache=memory"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · oauth=apple · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=memory · queue=memory",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"apple","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"memory","queue":"memory","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-035",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-2fa","--oauth=google,apple,github","--no-invitations","--no-platform","--captcha=recaptcha-v3","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · só seed · oauth=google+apple+github · sem 2FA · só pt · planos · arquivos · sem painel · captcha=recaptcha-v3 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"seed","social":"google+apple+github","twoFactor":false,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-036",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--oauth=apple","--invitations","--public-signup","--queue=bullmq","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · cadastro aberto · oauth=apple · sem 2FA · só pt · sem planos · sem arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"open","social":"apple","twoFactor":false,"languages":"one","plans":false,"files":false,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-037",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--oauth=google","--public-signup","--no-files","--i18n=pt,en","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · cadastro aberto · oauth=google · 2FA · pt+en · planos · sem arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"open","social":"google","twoFactor":true,"languages":"many","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-038",
+    "projectName": "Acme Corp",
+    "flags": ["--no-2fa","--no-files","--no-platform","--no-plans","--i18n=false","--captcha=recaptcha-v3"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · sem oauth · sem 2FA · só pt · sem planos · sem arquivos · sem painel · captcha=recaptcha-v3 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"off","twoFactor":false,"languages":"one","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-039",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--oauth=google,apple,github","--invitations","--public-signup","--i18n=pt,en","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · single-tenant · só convite · oauth=google+apple+github · sem 2FA · pt+en · sem planos · sem arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":false,"entry":"open","social":"google+apple+github","twoFactor":false,"languages":"many","plans":false,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-040",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-multi-tenant","--no-invitations","--no-platform","--no-plans","--i18n=pt,en","--captcha=none","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · single-tenant · só seed · sem oauth · 2FA · pt+en · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":false,"entry":"seed","social":"off","twoFactor":true,"languages":"many","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-041",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=apple","--no-public-signup","--no-platform","--no-plans","--i18n=false","--captcha=none"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só convite · oauth=apple · 2FA · só pt · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"invite","social":"apple","twoFactor":true,"languages":"one","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-042",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=github","--no-invitations","--no-public-signup","--no-platform","--no-plans"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só seed · oauth=github · 2FA · pt+en · sem planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"seed","social":"github","twoFactor":true,"languages":"many","plans":false,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-043",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--oauth=github","--public-signup","--i18n=pt,en","--captcha=none","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · cadastro aberto · oauth=github · 2FA · pt+en · planos · arquivos · painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"open","social":"github","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-044",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-2fa","--no-invitations","--no-public-signup","--no-platform","--no-plans","--i18n=false","--captcha=none"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só seed · oauth=google+apple+github · sem 2FA · só pt · sem planos · arquivos · sem painel · sem captcha · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"seed","social":"google+apple+github","twoFactor":false,"languages":"one","plans":false,"files":true,"captcha":false,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"n/a"}
+    ]
+  },
+  {
+    "id": "cfg-045",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=false","--no-public-signup","--no-files","--i18n=false"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só convite · sem oauth · 2FA · só pt · planos · sem arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"invite","social":"off","twoFactor":true,"languages":"one","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-046",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=apple","--captcha=recaptcha-v3"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · cadastro aberto · oauth=apple · 2FA · pt+en · planos · arquivos · painel · captcha=recaptcha-v3 · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"open","social":"apple","twoFactor":true,"languages":"many","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"recaptcha-v3"}
+    ]
+  },
+  {
+    "id": "cfg-047",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=github","--no-files","--i18n=false"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · cadastro aberto · oauth=github · 2FA · só pt · planos · sem arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"open","social":"github","twoFactor":true,"languages":"one","plans":true,"files":false,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-048",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--no-2fa","--oauth=google","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · só convite · oauth=google · sem 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"invite","social":"google","twoFactor":false,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-049",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--invitations","--public-signup","--files","--plans","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · cadastro aberto · sem oauth · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"open","social":"off","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-050",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--invitations","--files","--plans","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só convite · sem oauth · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"invite","social":"off","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-051",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=github","--invitations","--files","--plans","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só convite · oauth=github · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"invite","social":"github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-052",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=apple","--files","--plans","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só seed · oauth=apple · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"seed","social":"apple","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-053",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=github","--files","--plans","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só seed · oauth=github · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"seed","social":"github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-054",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=minimal","--multi-tenant","--2fa","--oauth=google,apple,github","--files","--plans","--queue=bullmq","--captcha=turnstile","--storage=s3","--cache=redis"],
+    "e2e": true,
+    "resumo": "minimal · multi-tenant · só seed · oauth=google+apple+github · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"minimal","multiTenant":true,"entry":"seed","social":"google+apple+github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-055",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=google","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · oauth=google · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"google","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-056",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=google,apple,github","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · cadastro aberto · oauth=google+apple+github · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"open","social":"google+apple+github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"},
+      {"preset":"internal","multiTenant":true,"entry":"open","social":"google+apple+github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-057",
+    "projectName": "Acme Corp",
+    "flags": ["--no-public-signup","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só convite · sem oauth · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"invite","social":"off","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-058",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=google,apple,github","--no-public-signup","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só convite · oauth=google+apple+github · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"invite","social":"google+apple+github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-059",
+    "projectName": "Acme Corp",
+    "flags": ["--no-invitations","--no-public-signup","--no-platform","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só seed · sem oauth · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"seed","social":"off","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-060",
+    "projectName": "Acme Corp",
+    "flags": ["--oauth=google","--no-invitations","--no-public-signup","--no-platform","--i18n=false"],
+    "e2e": true,
+    "resumo": "saas · multi-tenant · só seed · oauth=google · 2FA · só pt · planos · arquivos · sem painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"saas","multiTenant":true,"entry":"seed","social":"google","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-061",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=false","--i18n=false"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · cadastro aberto · sem oauth · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"open","social":"off","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-062",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--oauth=google","--no-public-signup","--i18n=false"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só convite · oauth=google · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"invite","social":"google","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-063",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=complete","--no-public-signup","--i18n=false"],
+    "e2e": true,
+    "resumo": "complete · multi-tenant · só convite · oauth=google+apple+github · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"complete","multiTenant":true,"entry":"invite","social":"google+apple+github","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  },
+  {
+    "id": "cfg-064",
+    "projectName": "Acme Corp",
+    "flags": ["--preset=internal","--oauth=apple","--storage=s3"],
+    "e2e": true,
+    "resumo": "internal · multi-tenant · só convite · oauth=apple · 2FA · só pt · planos · arquivos · painel · captcha=turnstile · storage=s3 · mail=smtp · cache=redis · queue=bullmq",
+    "respostas": [
+      {"preset":"internal","multiTenant":true,"entry":"invite","social":"apple","twoFactor":true,"languages":"one","plans":true,"files":true,"captcha":true,"storage":"s3","mail":"smtp","cache":"redis","queue":"bullmq","captchaDriver":"turnstile"}
+    ]
+  }
+]

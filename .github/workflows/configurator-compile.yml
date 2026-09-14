@@ -1,0 +1,191 @@
+name: Compilação do configurador
+
+# Prova que TODO vetor de features que a landing consegue montar gera um projeto que
+# compila e passa no lint — não só os oito casos da conformidade.
+#
+# São 960 vetores (ver `scripts/configurator-compile.ts list`). O que torna isso viável é
+# instalar dependências UMA vez por shard, no preset `complete`, e sobrepor cada variante
+# sobre aquele `node_modules`. O custo dessa economia (o `node_modules` é superconjunto,
+# então dependência removida-mas-importada não falha aqui) está documentado no script, e
+# é coberto pela camada estática do `configurator-matrix.ts check`.
+#
+# Só manual: são horas de runner. Não é portão de PR — é a varredura que se roda ao subir
+# o template ou mexer no manifesto de features.
+
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: 'Número de shards (jobs paralelos). 960 vetores / 20 = 48 por shard.'
+        required: false
+        default: '20'
+      limit:
+        description: 'Máximo de vetores POR shard (vazio = todos). Para um ensaio curto.'
+        required: false
+        default: ''
+      with_drivers:
+        description: 'Separar vetores também por driver de storage/cache/fila (1280 em vez de 960)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: configurator-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shards:
+    name: Planejar shards
+    runs-on: ubuntu-latest
+    outputs:
+      lista: ${{ steps.lista.outputs.lista }}
+    steps:
+      - name: Gerar a lista de shards
+        id: lista
+        # Input via env, não interpolado no script: um valor digitado no formulário do
+        # dispatch vira texto de shell se for interpolado direto.
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          if ! [[ "$SHARDS" =~ ^[0-9]+$ ]] || [ "$SHARDS" -lt 1 ] || [ "$SHARDS" -gt 256 ]; then
+            # 256 é o teto de jobs por matriz do GitHub Actions.
+            echo "::error::shards precisa ser inteiro entre 1 e 256 (recebi '$SHARDS')"
+            exit 1
+          fi
+          echo "lista=$(node -e 'console.log(JSON.stringify([...Array(Number(process.argv[1])).keys()]))' "$SHARDS")" >> "$GITHUB_OUTPUT"
+
+  compile:
+    name: shard ${{ matrix.shard }}
+    needs: shards
+    runs-on: ubuntu-latest
+    # 48 vetores a ~1-3 min cada, mais o install da base. Folgado de propósito: um shard
+    # que estoura o timeout perde o que faltava, e o resumo tem de apontar isso.
+    timeout-minutes: 300
+
+    strategy:
+      # Sem fail-fast: o objetivo é o mapa inteiro das combinações quebradas, não a
+      # primeira delas.
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJSON(needs.shards.outputs.lista) }}
+
+    # Sem Postgres nem Redis: typecheck e lint não abrem conexão. O `prisma generate` é
+    # offline (o `prisma.config.ts` do projeto gerado tem URL de placeholder para isso).
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Mesma leitura da conformidade: a tag vem do template.json a cada execução.
+      - name: Ler a tag do boilerplate declarada no template.json
+        id: template
+        run: |
+          REF="$(node -p "require('./packages/cli/template.json').tag")"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout do boilerplate, na tag declarada
+        uses: actions/checkout@v7
+        with:
+          repository: marmottajr/dontpanic
+          ref: ${{ steps.template.outputs.ref }}
+          path: .boilerplate
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      # Sem `cache: pnpm` aqui, ao contrário da conformidade. O cache do setup-node é
+      # chaveado pelo lockfile DESTE repo, e o grosso do store neste job é o do projeto
+      # GERADO — que não tem lockfile versionado. Os dois caches disputariam o mesmo
+      # diretório; o passo abaixo guarda um só, com uma chave que muda quando o template
+      # muda.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Localizar o store do pnpm
+        id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache do store do pnpm
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.store.outputs.path }}
+          # template.json fixa o commit do boilerplate, que fixa as dependências do
+          # projeto gerado. Os 20 shards tentam salvar a mesma chave; um consegue, os
+          # outros só avisam — e na próxima execução todos restauram.
+          key: pnpm-store-configurator-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'packages/cli/template.json') }}
+          restore-keys: pnpm-store-configurator-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Materializar o template
+        # Caminho absoluto: ver o comentário equivalente em conformance.yml.
+        run: pnpm sync-template --from="$GITHUB_WORKSPACE/.boilerplate"
+
+      - run: pnpm --filter create-dontpanic build
+
+      - name: Compilar os vetores do shard
+        working-directory: packages/cli
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ inputs.shards }}
+          LIMIT: ${{ inputs.limit }}
+          WITH_DRIVERS: ${{ inputs.with_drivers && '--with-drivers' || '' }}
+        # `--jobs=4`: o runner padrão tem 4 vCPUs e 16 GB. As seis checagens de uma
+        # variante (typecheck e lint de api, web e shared) são independentes; o tsc do
+        # web é o que mais pesa em memória, e quatro processos cabem com folga.
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.configurator-compile"
+          node --experimental-strip-types scripts/configurator-compile.ts run \
+            --shard="$SHARD" --shards="$SHARDS" \
+            ${LIMIT:+--limit="$LIMIT"} $WITH_DRIVERS \
+            --jobs=4 \
+            --out="$GITHUB_WORKSPACE/.configurator-compile/configurator-compile-shard-$SHARD.json"
+
+      # Sempre: o relatório é escrito a cada variante, então mesmo um shard que falhou ou
+      # estourou o timeout deixa o que já tinha verificado.
+      - name: Guardar o relatório do shard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: configurator-compile-shard-${{ matrix.shard }}
+          path: .configurator-compile/configurator-compile-shard-*.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  summary:
+    name: Resumo
+    needs: compile
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      # Só o script é necessário: o modo `summarize` importa apenas `src/types.ts`, que
+      # não tem dependências — então nada de pnpm install aqui.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Baixar os relatórios
+        uses: actions/download-artifact@v4
+        with:
+          pattern: configurator-compile-shard-*
+          path: relatorios
+          merge-multiple: true
+
+      - name: Escrever o resumo
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          mkdir -p relatorios
+          node --experimental-strip-types packages/cli/scripts/configurator-compile.ts summarize \
+            --dir=relatorios --shards="$SHARDS" --json=resumo.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar o resumo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resumo
+          path: resumo.json
+          retention-days: 14
+          if-no-files-found: ignore

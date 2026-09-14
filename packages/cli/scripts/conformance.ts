@@ -12,6 +12,10 @@
  * não sobrou em lugar nenhum, e só então prova que o projeto instala, compila e passa.
  *
  * Roda no CI (.github/workflows/conformance.yml) e localmente com `pnpm conformance`.
+ *
+ * `--cases-file=<json>` troca os casos abaixo por uma lista externa — é como a matriz
+ * profunda do configurador (.github/workflows/configurator-matrix.yml) roda um caso por
+ * runner com este mesmo portão, em vez de manter uma segunda cópia dele.
  */
 
 import { execFile } from 'node:child_process';
@@ -409,6 +413,82 @@ async function prepararBanco(dir: string): Promise<string | undefined> {
   }
 }
 
+/**
+ * Lê uma lista de casos de um JSON: `[{ id, projectName, flags, e2e }]`.
+ *
+ * O caminho é resolvido contra, nesta ordem, o diretório onde o `pnpm` foi chamado
+ * (`INIT_CWD`), o cwd e a raiz do repo. É a mesma armadilha do `--from` do sync-template
+ * no workflow: `pnpm --filter create-dontpanic conformance` roda com cwd em
+ * `packages/cli`, e um `--cases-file=packages/cli/conformance/x.json` escrito a partir da
+ * raiz não existiria ali. Tentar os três aceita o caminho como a pessoa o escreveria.
+ *
+ * Campos extras (a matriz profunda guarda `resumo` e `respostas`) são ignorados; os
+ * quatro que a conformidade usa são conferidos um a um, porque um `flags` que chegasse
+ * como string seria espalhado letra por letra no argv do CLI.
+ */
+async function loadCasesFile(path: string): Promise<ConformanceCase[]> {
+  const bases = [process.env['INIT_CWD'], process.cwd(), REPO_ROOT].filter(
+    (b): b is string => b !== undefined,
+  );
+  const candidates = [...new Set(bases.map((b) => resolve(b, path)))];
+  let found: string | undefined;
+  for (const candidate of candidates) {
+    if (await pathExists(candidate)) {
+      found = candidate;
+      break;
+    }
+  }
+  if (found === undefined) {
+    console.error(`--cases-file não encontrado. Tentei: ${candidates.join(', ')}`);
+    process.exit(2);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(found, 'utf8'));
+  } catch (err) {
+    console.error(`--cases-file ${found} não é JSON válido: ${String(err)}`);
+    process.exit(2);
+  }
+  if (!Array.isArray(parsed)) {
+    console.error(`--cases-file ${found} tem de ser um array de casos.`);
+    process.exit(2);
+  }
+
+  const cases: ConformanceCase[] = [];
+  const seen = new Set<string>();
+  for (const [i, item] of (parsed as unknown[]).entries()) {
+    const c = item as Partial<Record<keyof ConformanceCase, unknown>> | null;
+    const valid =
+      c !== null &&
+      typeof c === 'object' &&
+      typeof c.id === 'string' &&
+      c.id !== '' &&
+      typeof c.projectName === 'string' &&
+      Array.isArray(c.flags) &&
+      (c.flags as unknown[]).every((f) => typeof f === 'string') &&
+      typeof c.e2e === 'boolean';
+    if (!valid) {
+      console.error(`--cases-file ${found}: o item ${i} não tem { id, projectName, flags: string[], e2e: boolean }.`);
+      process.exit(2);
+    }
+    const id = c.id as string;
+    if (seen.has(id)) {
+      // `--case=<id>` escolheria o primeiro e o segundo nunca rodaria — em silêncio.
+      console.error(`--cases-file ${found}: id repetido "${id}".`);
+      process.exit(2);
+    }
+    seen.add(id);
+    cases.push({
+      id,
+      projectName: c.projectName as string,
+      flags: [...(c.flags as string[])],
+      e2e: c.e2e as boolean,
+    });
+  }
+  return cases;
+}
+
 function errorText(err: unknown): string {
   if (typeof err === 'object' && err !== null) {
     const e = err as { stderr?: string; stdout?: string; message?: string };
@@ -458,9 +538,20 @@ async function main(): Promise<void> {
   const deep = !argv.includes('--shallow');
   const e2e = argv.includes('--e2e');
 
-  const cases = only ? CASES.filter((c) => c.id === only) : CASES;
+  const casesFile = argv.find((a) => a.startsWith('--cases-file='))?.slice('--cases-file='.length);
+
+  // `--cases-file` SUBSTITUI a lista, em vez de somar a ela: a matriz profunda do
+  // configurador (scripts/configurator-deep-matrix.ts) roda um caso por runner, e
+  // misturar os oito casos fixos ali faria cada runner da matriz carregar ids que não
+  // são dele. `--case` continua selecionando — agora dentro do arquivo.
+  const universe = casesFile !== undefined ? await loadCasesFile(casesFile) : CASES;
+
+  const cases = only ? universe.filter((c) => c.id === only) : universe;
   if (cases.length === 0) {
-    console.error(`Nenhum caso com id "${only}". Disponíveis: ${CASES.map((c) => c.id).join(', ')}`);
+    // Com um arquivo de centenas de casos, listar todos soterra a mensagem.
+    const ids = universe.map((c) => c.id);
+    const shown = ids.length > 20 ? `${ids.slice(0, 20).join(', ')}, ... (+${ids.length - 20})` : ids.join(', ');
+    console.error(`Nenhum caso com id "${only}". Disponíveis: ${shown}`);
     process.exit(2);
   }
 

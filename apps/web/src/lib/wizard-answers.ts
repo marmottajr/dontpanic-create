@@ -11,9 +11,31 @@
  * exactamente como uma resposta passa a significar coisas diferentes em dois lugares.
  */
 
-import type { FeatureSelection, Recipe } from './recipe-bridge';
+import { PRESETS, type FeatureId, type FeatureSelection, type PresetId, type Recipe } from './recipe-bridge';
 
 export type EntryChoice = 'open' | 'invite' | 'seed';
+
+/** O que o painel da plataforma exige — as mesmas arestas que o CLI recusa quebrar. */
+export const PLATFORM_REQUIRES = ['multiTenant', 'invitations', 'plans', 'audit'] as const satisfies readonly FeatureId[];
+
+/**
+ * Mantém o painel da plataforma coerente com as respostas.
+ *
+ * O painel não é pergunta do assistente: ele vem do preset. E ele depende de quatro
+ * features que SÃO perguntas — multi-tenancy, convites (a porta de entrada), planos, e
+ * auditoria. Responder "não" a uma delas num preset com painel produzia uma receita que
+ * o CLI recusa, de propósito e sem correção automática: "não existe um pouco de painel".
+ * Quem copiava o comando descobria no terminal.
+ *
+ * A regra é derivar, não só desligar: o painel acompanha o preset enquanto as quatro
+ * estiverem ligadas, e volta se a pessoa mudar de ideia. Um preset sem painel nunca o
+ * ganha por aqui — ligar o painel não é uma resposta que o assistente oferece.
+ */
+export function syncPlatform(recipe: Recipe, preset: PresetId, changed: FeatureId): void {
+  if (!(PLATFORM_REQUIRES as readonly FeatureId[]).includes(changed)) return;
+  if (!PRESETS[preset].features.platform) return;
+  recipe.features.platform = PLATFORM_REQUIRES.every((id) => recipe.features[id]);
+}
 export type LanguageChoice = 'one' | 'many';
 
 /**

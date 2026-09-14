@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { entryChoice, entryFeatures, languageChoice, type EntryChoice } from './wizard-answers';
-import { DEFAULT_PRESET, presetRecipe, PRESETS, PRESET_IDS, type PresetId } from './recipe-bridge';
+import {
+  entryChoice,
+  entryFeatures,
+  languageChoice,
+  PLATFORM_REQUIRES,
+  syncPlatform,
+  type EntryChoice,
+} from './wizard-answers';
+import {
+  DEFAULT_PRESET,
+  presetRecipe,
+  PRESETS,
+  PRESET_IDS,
+  reconcileRecipe,
+  validateRecipe,
+  type PresetId,
+} from './recipe-bridge';
 import { SAMPLE_PROJECT } from './recipe-url';
 
 const recipeOf = (preset: PresetId) => presetRecipe(preset, { ...SAMPLE_PROJECT });
@@ -64,5 +79,57 @@ describe('respostas do assistente', () => {
   it('o preset padrão abre coerente', () => {
     expect(PRESET_IDS).toContain(DEFAULT_PRESET);
     expect(entryChoice(recipeOf(DEFAULT_PRESET).features)).toBe('open');
+  });
+});
+
+describe('painel da plataforma segue as respostas', () => {
+  // O mesmo caminho do CLI: reconciliar e só então validar. Desligar multi-tenancy também
+  // invalida o registro público (I11), e esse o CLI corrige sozinho — a pergunta aqui é
+  // se sobra alguma recusa SEM correção, que é o que chegaria ao terminal como erro.
+  const blocking = (recipe: ReturnType<typeof recipeOf>) =>
+    validateRecipe(reconcileRecipe(recipe).recipe).filter((issue) => issue.level === 'error');
+
+  /**
+   * O caso que motivou a regra: nos presets com painel, responder "não" a qualquer uma
+   * das quatro dependências montava um comando que o CLI recusa. Aqui cada uma é
+   * desligada pelo mesmo caminho do assistente, e a receita tem de sair aceitável.
+   */
+  it.each(
+    PRESET_IDS.filter((preset) => PRESETS[preset].features.platform).flatMap((preset) =>
+      PLATFORM_REQUIRES.filter((id) => id !== 'audit').map((id) => [preset, id] as const),
+    ),
+  )('no preset %s, desligar %s desliga o painel e o CLI aceita', (preset, id) => {
+    const recipe = recipeOf(preset);
+    recipe.features[id] = false;
+    syncPlatform(recipe, preset, id);
+    expect(recipe.features.platform).toBe(false);
+    expect(blocking(recipe)).toEqual([]);
+  });
+
+  it('o painel volta quando a pessoa muda de ideia', () => {
+    const recipe = recipeOf('complete');
+    recipe.features.plans = false;
+    syncPlatform(recipe, 'complete', 'plans');
+    recipe.features.plans = true;
+    syncPlatform(recipe, 'complete', 'plans');
+    expect(recipe.features.platform).toBe(true);
+  });
+
+  it('um preset sem painel nunca o ganha por uma resposta', () => {
+    const preset = PRESET_IDS.find((p) => !PRESETS[p].features.platform);
+    expect(preset).toBeDefined();
+    const recipe = recipeOf(preset as PresetId);
+    for (const id of PLATFORM_REQUIRES) {
+      recipe.features[id] = true;
+      syncPlatform(recipe, preset as PresetId, id);
+    }
+    expect(recipe.features.platform).toBe(false);
+  });
+
+  it('ignora features de que o painel não depende', () => {
+    const recipe = recipeOf('complete');
+    recipe.features.plans = false; // estado incoerente montado à mão
+    syncPlatform(recipe, 'complete', 'files');
+    expect(recipe.features.platform).toBe(true);
   });
 });

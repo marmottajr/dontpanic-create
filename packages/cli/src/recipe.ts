@@ -1287,17 +1287,6 @@ export function validateRecipe(recipe: Recipe): RecipeIssue[] {
     });
   }
 
-  // I17 — `@fastify/static` está declarado no boilerplate mas nunca importado, então
-  // `LOCAL_STORAGE_PUBLIC_URL` aponta para uma rota que a API não serve. É bug
-  // pré-existente, e o gerador tem de acrescentar o wiring ao emitir storage local.
-  if (f.files && recipe.drivers.storage === 'local') {
-    issues.push({
-      level: 'warning',
-      message:
-        'Storage local: o gerador acrescenta o wiring de @fastify/static — sem ele o avatar responde 404, porque LOCAL_STORAGE_PUBLIC_URL aponta para uma rota que a API não serve.',
-    });
-  }
-
   if (recipe.i18n.locales.length === 0) {
     issues.push({ level: 'error', message: 'A lista de idiomas está vazia.' });
   }

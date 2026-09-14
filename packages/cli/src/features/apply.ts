@@ -37,15 +37,7 @@ import {
   dropFields as dropPrismaFields,
   tightenField as tightenPrismaField,
 } from '../seams/prisma-schema.ts';
-import {
-  DOC_TRUTH_SEAMS,
-  FEATURE_MANIFESTS,
-  FILES_ORPHANED_BY_FEATURE_PAIRS,
-  GHOST_DEPS,
-  GHOST_DEP_SEAMS,
-  LOCAL_STORAGE_STATIC_FIX,
-  removalOrder,
-} from './manifest.ts';
+import { FEATURE_MANIFESTS, FILES_ORPHANED_BY_FEATURE_PAIRS, removalOrder } from './manifest.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Resultado
@@ -292,35 +284,6 @@ export async function applyFeatureRemoval(
       bucket.push({ feature: id, seam });
       byFile.set(file, bucket);
     }
-  }
-
-  // As deps fantasma do A3.2 saem em QUALQUER configuração: são declaradas e nunca
-  // importadas (`@fastify/static`, `@fastify/rate-limit`,
-  // `@aws-sdk/s3-request-presigner`). Um gerador que poda features e ainda entrega peso
-  // morto conhecido está entregando peso morto conhecido.
-  // As correções de VERDADE na documentação (A3.3) também são incondicionais: o
-  // `CLAUDE.md` afirma uma política de supply-chain que o `pnpm-workspace.yaml` não
-  // configura. Um projeto gerado que repete isso afirma ter proteção que não tem.
-  for (const seam of [...GHOST_DEP_SEAMS, ...DOC_TRUTH_SEAMS]) {
-    const bucket = byFile.get(seam.file) ?? [];
-    bucket.push({ feature: '(incondicional)', seam });
-    byFile.set(seam.file, bucket);
-  }
-
-  // I17: com storage `local`, `@fastify/static` VOLTA e precisa ser registrado. É a única
-  // operação aditiva do gerador, e existe porque `LOCAL_STORAGE_PUBLIC_URL` aponta hoje
-  // para uma rota que a API não serve — os avatares dão 404. Bug pré-existente do
-  // boilerplate; o gerador tem a chance de não propagá-lo.
-  if (recipe.features.files && recipe.drivers.storage === 'local') {
-    for (const seam of LOCAL_STORAGE_STATIC_FIX.seams) {
-      const bucket = byFile.get(seam.file) ?? [];
-      bucket.push({ feature: '(incondicional)', seam });
-      byFile.set(seam.file, bucket);
-    }
-    result.warnings.push(
-      'Storage local: `@fastify/static` foi reintroduzido e registrado (I17). ' +
-        'Sem isso, `LOCAL_STORAGE_PUBLIC_URL` aponta para rota que a API não serve e todo avatar dá 404.',
-    );
   }
 
   const required: SkippedSeam[] = [];
@@ -963,11 +926,9 @@ async function removeDependencies(
 ): Promise<void> {
   const { templateDir, dryRun } = ctx;
 
-  const wanted: { workspace: string; remove: string[] }[] = [
-    // Incondicionais primeiro: A3.2 verificou zero imports no repo inteiro.
-    ...GHOST_DEPS,
-    ...order.flatMap((id) => FEATURE_MANIFESTS[id].deps ?? []),
-  ];
+  const wanted: { workspace: string; remove: string[] }[] = order.flatMap(
+    (id) => FEATURE_MANIFESTS[id].deps ?? [],
+  );
 
   const byWorkspace = new Map<string, Set<string>>();
   for (const entry of wanted) {
@@ -976,7 +937,7 @@ async function removeDependencies(
     byWorkspace.set(entry.workspace, bucket);
   }
 
-  const { dropDependency, upsertDependency } = await import('../seams/json-file.ts');
+  const { dropDependency } = await import('../seams/json-file.ts');
 
   for (const [workspace, names] of [...byWorkspace.entries()].sort()) {
     const rel = workspace === '.' ? 'package.json' : `${workspace}/package.json`;
@@ -1004,36 +965,6 @@ async function removeDependencies(
       result.depsRemoved.push({ workspace, name });
     }
     if (touched && !dryRun) await writeText(abs, content);
-  }
-
-  // I17 · a dep que VOLTA, depois de toda a poda.
-  //
-  // `@fastify/static` está em `GHOST_DEPS` (declarada e nunca importada), então acabou de
-  // ser removida acima. Num build de storage `local` ela é necessária de verdade: a
-  // costura de `main.ts` registra o plugin, e sem a dep no `package.json` o
-  // `pnpm typecheck` do projeto gerado falha com `TS2307` no bootstrap.
-  //
-  // A ordem é o ponto: re-adicionar ANTES da poda faria a poda desfazer o conserto. Este
-  // bloco existia como dado (`LOCAL_STORAGE_STATIC_FIX.readdDeps`) e nunca era consumido —
-  // as costuras de código eram aplicadas e a dep não, o que é o pior dos dois mundos.
-  if (ctx.recipe.features.files && ctx.recipe.drivers.storage === 'local') {
-    for (const entry of LOCAL_STORAGE_STATIC_FIX.readdDeps) {
-      const rel = `${entry.workspace}/package.json`;
-      const abs = assertWithin(templateDir, rel);
-      if (!(await pathExists(abs))) continue;
-      let content = await readText(abs);
-      let touched = false;
-      for (const name of entry.add) {
-        const out = upsertDependency(content, 'dependencies', name, entry.version, rel);
-        if (!out.matched) {
-          result.warnings.push(`[I17] não consegui reintroduzir ${name} em ${rel}`);
-          continue;
-        }
-        content = out.content;
-        touched = true;
-      }
-      if (touched && !dryRun) await writeText(abs, content);
-    }
   }
 }
 

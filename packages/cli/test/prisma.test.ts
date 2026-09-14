@@ -732,7 +732,12 @@ describe('buildBaseline — contra o template real', () => {
       assert.ok(created.length >= 15, `só ${created.length} tabelas criadas`);
 
       // Ordem: tabelas → RLS → role → varredura final.
-      const lastTable = result.sql.lastIndexOf('CREATE TABLE');
+      //
+      // `CREATE TABLE "` com a aspa, o mesmo critério da contagem acima: DDL de verdade. A
+      // migration de RLS do boilerplate (v0.4.0) explica em comentário por que a guarda é
+      // `IF EXISTS` "e não um `CREATE TABLE IF NOT EXISTS`" — um `lastIndexOf` sem aspa
+      // achava essa prosa, depois do `CREATE SCHEMA`, e acusava uma ordem que está certa.
+      const lastTable = result.sql.lastIndexOf('CREATE TABLE "');
       const rls = result.sql.indexOf('CREATE SCHEMA IF NOT EXISTS app');
       const role = result.sql.indexOf('CREATE ROLE dontpanic_app');
       assert.ok(lastTable < rls && rls < role);

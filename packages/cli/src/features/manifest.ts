@@ -70,23 +70,12 @@ import {
 } from './queue-captcha-signup-eggs.ts';
 import {
   CHARTS_ORPHAN_WHEN_PLATFORM_OFF,
-  DOC_TRUTH_SEAMS,
   FILES_ORPHANED_BY_FEATURE_PAIRS,
-  GHOST_DEPS,
-  GHOST_DEP_SEAMS,
-  LOCAL_STORAGE_STATIC_FIX,
   scaffoldingManifest,
 } from './scaffolding.ts';
 import { filesManifest, twoFactorManifest } from './twofactor-files.ts';
 
-export {
-  CHARTS_ORPHAN_WHEN_PLATFORM_OFF,
-  DOC_TRUTH_SEAMS,
-  FILES_ORPHANED_BY_FEATURE_PAIRS,
-  GHOST_DEPS,
-  GHOST_DEP_SEAMS,
-  LOCAL_STORAGE_STATIC_FIX,
-};
+export { CHARTS_ORPHAN_WHEN_PLATFORM_OFF, FILES_ORPHANED_BY_FEATURE_PAIRS };
 
 /**
  * Um manifesto por feature. O `Record` completo é o contrato: `FEATURE_IDS` e este objeto

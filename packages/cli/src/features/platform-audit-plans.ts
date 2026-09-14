@@ -1123,6 +1123,109 @@ export const plansManifest: FeatureManifest = {
       required: false,
     },
 
+    // ── boilerplate v0.4.0: assento e sessão única PASSARAM a depender do plano ──
+    // O #39 ligou duas regras que antes eram só coluna: `concurrentSessions` agora é
+    // imposto no `TokenService` (um plano sem ele dá uma sessão viva), e reativar um
+    // usuário no painel de admin pergunta ao `PlanLimitsService` se há assento. As duas
+    // leem o model `Plan` e importam `plan-limits.service`, que saem com esta feature —
+    // então saem junto, e a regra volta a ser a de antes do plano: sessões concorrentes
+    // livres e reativação sem teto. Nenhuma das duas é `required: false`: os arquivos
+    // são do núcleo de auth/admin e existem em qualquer receita.
+    {
+      file: 'apps/api/src/modules/auth/services/token.service.ts',
+      kind: 'dropImport',
+      pattern: '\\.\\./\\.\\./tenants/services/plan-limits\\.service',
+      reason:
+        'Import de `planAllowsConcurrentSessions`, de um arquivo que sai em deletePaths — sem esta costura o typecheck para em token.service.ts com TS2307.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/token.service.ts',
+      kind: 'replace',
+      pattern:
+        'const tokens = await this\\.mint\\(user, familyId, ctx\\);\\n(\\s*)await this\\.enforceSingleSession\\(user, familyId\\);\\n\\s*return tokens;',
+      replacement: 'return this.mint(user, familyId, ctx);',
+      reason:
+        'O `issueTokensForUser` volta a só emitir: sem plano não há flag `concurrentSessions` a impor, e a chamada apontaria para o método removido abaixo.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/token.service.ts',
+      kind: 'dropBlockWithLeadingDoc',
+      block: { start: 'private async enforceSingleSession\\(', end: '^  \\}$' },
+      reason:
+        'O método inteiro com o doc-comment que o justifica: ele lê `tenant.plan.features`, relação que o Prisma Client deixa de conhecer quando `Plan` sai (TS2353 no `select`). O fim é o `  }` do método; os `return` internos ficam em 4 espaços.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/token.service.spec.ts',
+      kind: 'dropBlockWithLeadingDoc',
+      block: {
+        start: "describe\\('issueTokensForUser \\(single session per plan\\)'",
+        end: '^  \\}\\);$',
+      },
+      reason:
+        'Os cinco testes da sessão única por plano, com o comentário que os apresenta. Testariam um comportamento que não existe mais neste projeto.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/token.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*tenant: \\{ findUnique: jest\\.',
+      reason:
+        'O mock de `prisma.tenant.findUnique` (tipo e valor) existia só para a leitura do plano no `enforceSingleSession`.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.ts',
+      kind: 'dropImport',
+      pattern: '\\.\\./tenants/services/plan-limits\\.service',
+      reason: 'Import de arquivo que sai em deletePaths (TS2307 em admin-users.service.ts).',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*private readonly planLimits: PlanLimitsService,\\s*$',
+      reason: 'O parâmetro do construtor: sem `plans` o provider não existe e o Nest não conseguiria resolver a injeção.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*if \\(active\\) await this\\.planLimits\\.assertCanAddUser\\(tx\\);\\s*$',
+      reason:
+        'A checagem de assento na reativação. Sem plano não há teto de usuários: reativar volta a ser só virar o booleano, dentro da mesma transação.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.spec.ts',
+      kind: 'dropBlockWithLeadingDoc',
+      block: { start: "it\\('refuses the reactivation when the plan has no seat left'", end: '^    \\}\\);$' },
+      reason: 'O teste do plano cheio: com `plans` desligado não existe plano para encher.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        "\\s*expect\\(planLimits\\.assertCanAddUser\\)\\.toHaveBeenCalledWith\\(prisma\\);\\n\\s*// The same client[^\\n]*\\n\\s*// transaction would[^\\n]*\\n\\s*// to protect\\.",
+      replacement: '',
+      reason:
+        'A asserção de que a reativação consulta o plano, com o comentário que explica por que ela usa o mesmo client da transação. Sai antes da costura de linha abaixo para o comentário não ficar órfão.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.spec.ts',
+      kind: 'replace',
+      pattern: "reactivates only after the plan is asked, inside the same transaction",
+      replacement: 'reactivates inside a transaction',
+      reason: 'O nome do teste afirmava a consulta ao plano, que acabou de sair.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*(let planLimits: any;|planLimits = \\{ assertCanAddUser: |expect\\(planLimits\\.assertCanAddUser\\))',
+      reason: 'A declaração e o mock de `planLimits`, e as asserções `not.toHaveBeenCalled` sobre ele nos outros testes de setActive.',
+    },
+    {
+      file: 'apps/api/src/modules/admin/admin-users.service.spec.ts',
+      kind: 'replace',
+      pattern: 'new AdminUsersService\\(prisma, tokenService, planLimits\\)',
+      replacement: 'new AdminUsersService(prisma, tokenService)',
+      reason: 'O construtor perdeu o parâmetro `planLimits` na costura de admin-users.service.ts.',
+    },
+
     // ── packages/shared ─────────────────────────────────────────────────────
     {
       file: 'packages/shared/src/tenant.ts',

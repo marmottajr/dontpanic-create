@@ -259,8 +259,14 @@ export const TEMPLATE_PATCHES: TemplatePatch[] = [
     // originais); enfraquece o gate do projeto gerado em alguns pontos, que é o preço de
     // um gate que não dispara por causa de uma feature ausente. Um piso de 90 continua
     // pegando "alguém apagou os testes".
+    //
+    // `functions: \d+` e não o literal `100`. O boilerplate v0.4.0 baixou o próprio piso
+    // para 98, e o padrão literal parou de casar — em silêncio, porque `applyTemplatePatches`
+    // só reporta o que mudou. Os projetos gerados passaram a nascer com 97/92/98/97, e as
+    // receitas menores falhavam o `pnpm test` no gate de cobertura. O que este patch
+    // corrige é o piso da API como um todo, qualquer que seja o número de funções do dia.
     matches: (rel) => rel === 'apps/api/jest.config.js',
-    find: /statements: 97,\s*\n(\s*)branches: 92,\s*\n\s*functions: 100,\s*\n\s*lines: 97,/,
+    find: /statements: 97,\s*\n(\s*)branches: 92,\s*\n\s*functions: \d+,\s*\n\s*lines: 97,/,
     replace:
       'statements: 90,\n$1branches: 85,\n$1// 90 e não 100: este projeto foi gerado por subtração, e um piso sem\n$1// folga nenhuma dispara por causa de uma feature ausente, não de um teste\n$1// que falta. Suba-o de volta quando a sua suíte estabilizar.\n$1functions: 90,\n$1lines: 90,',
     reason: 'coverageThreshold.functions: 100 não tem folga e quebra em qualquer subtração',

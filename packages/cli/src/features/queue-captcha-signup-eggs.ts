@@ -48,6 +48,27 @@ import type { FeatureManifest } from '../types.ts';
  *    => Por isso `core/queue/jobs.ts` SOBREVIVE com `'mail.send'` dentro.
  *       NÃO coloque `apps/api/src/core/queue/**` em `deletePaths`.
  *
+ *  • MAS a união de UM membro também não compila do jeito que o template escreve —
+ *    o mapa testou a união vazia e não a unitária, e foi isso que deixou TODO
+ *    projeto `--no-queue` sem build (v0.4.0):
+ *        job-router.service.ts(50,15): error TS2322:
+ *          Type 'JobEnvelopeOf<"mail.send">' is not assignable to type 'never'.
+ *    O `default` faz `const unknown: never = envelope`. O TypeScript só estreita o
+ *    OBJETO para `never` pelo discriminante quando o tipo dele é uma UNIÃO; com um
+ *    job só, `JobEnvelope` colapsa em `JobEnvelopeOf<'mail.send'>`, que não é união,
+ *    e o objeto sai do `switch` intacto. O que ainda estreita é a PROPRIEDADE
+ *    `envelope.name` (literal `'mail.send'` → `never`). Por isso a costura troca a
+ *    checagem de exaustividade para `envelope.name` — que continua quebrando o build
+ *    se o usuário adicionar um job sem `case`, ou seja, preserva a garantia do `never`.
+ *
+ *  • Nível (i) e NÃO nível (ii), mesmo com o texto da receita falando em "o port sai
+ *    inteiro": o (ii) edita os três services, os três specs deles, o health indicator,
+ *    o `app.module.ts` e o `CLAUDE.md` — arquivos que oauth, invitations e platform
+ *    também podam, com âncoras que teriam de sobreviver a todas as combinações. O (i)
+ *    entrega o mesmo comportamento observável (e-mail inline, sem retry, sem dedup)
+ *    tocando só arquivos que são desta feature. O texto da receita é que precisa
+ *    alinhar com o código gerado, não o contrário.
+ *
  *  • TRÊS services tomam `QUEUE_PROVIDER` como parâmetro de construtor
  *    **obrigatório** (mapa 3422-3427), e `QueueModule` é `@Global()`
  *    (`queue.module.ts:9`), então remover o módulo sem editar os três dá falha de
@@ -127,9 +148,13 @@ export const queueManifest: FeatureManifest = {
     {
       file: 'apps/api/src/infra/queue/queue.module.ts',
       kind: 'replace',
+      // O padrão cobre `inject` + a assinatura do `useFactory` junto com o ternário: só
+      // trocar o ternário deixava `inject: [ConfigService]` e um parâmetro `config` que
+      // ninguém lê — injeção morta que o ESLint aponta e que sugere ao leitor que o
+      // driver ainda depende de configuração.
       pattern:
-        "config\\.get\\('QUEUE_DRIVER'[\\s\\S]*?backoffMs: config\\.get\\('QUEUE_BACKOFF'[^)]*\\),\\s*\\}\\)",
-      replacement: 'new MemoryQueueAdapter()',
+        "inject: \\[ConfigService\\],\\s*useFactory: \\(config: ConfigService<Env, true>\\) =>\\s*config\\.get\\('QUEUE_DRIVER'[\\s\\S]*?backoffMs: config\\.get\\('QUEUE_BACKOFF'[^)]*\\),\\s*\\}\\)",
+      replacement: 'useFactory: () => new MemoryQueueAdapter()',
       reason:
         'Com um único driver o ternário de `useFactory` perde sentido e ainda leria as envs QUEUE_* que saíram do schema Zod — o `config.get` com `{ infer: true }` deixaria de tipar.',
     },
@@ -142,17 +167,72 @@ export const queueManifest: FeatureManifest = {
     },
     {
       file: 'apps/api/src/infra/queue/queue.module.ts',
-      // `dropBlock`, não `dropBlockWithLeadingDoc`: o bloco cabe INTEIRO dentro de um
-      // comentário (é um parágrafo, não um símbolo). O outro kind sobe absorvendo o
-      // doc-comment de cima — que aqui é este mesmo comentário —, come a abertura e
-      // deixa o fechamento órfão, o que torna o arquivo sintaticamente inválido.
-      kind: 'dropBlock',
-      block: {
-        start: 'With `bullmq` this does nothing',
-        end: 'background work it was split apart to avoid\\.',
-      },
+      kind: 'dropLinesMatching',
+      pattern: 'private readonly config: ConfigService<Env, true>,',
+      reason:
+        'O guard acima era o único leitor de `this.config`. O construtor sai sem ele, e o `queue.module.spec.ts` é podado para instanciar o módulo com os dois argumentos que sobram.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.ts',
+      kind: 'dropImport',
+      pattern: '^@nestjs/config$',
+      reason: 'Sem `inject` nem construtor lendo config, o import de `ConfigService` fica órfão.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.ts',
+      kind: 'dropImport',
+      pattern: '/config/env$',
+      reason: '`Env` só tipava o `ConfigService` que saiu.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.ts',
+      // `replace` sobre o parágrafo inteiro, não `dropBlock` do trecho bullmq: o drop
+      // deixava um ` *` vazio antes do `*/` e mantinha "On the memory driver", que
+      // pressupõe um segundo driver. Reescrever diz o que quebra se alguém tirar isto.
+      kind: 'replace',
+      pattern:
+        '\\* On the memory driver, whoever enqueues also runs the job[\\s\\S]*?background work it was split apart to avoid\\.',
+      replacement:
+        '* The only driver runs each job inline in whoever enqueued it, so the handler\n   * has to be registered here: without it every job — mail included — is dropped\n   * with a warning while the request still answers 200.',
       reason:
         'O doc-comment de `onModuleInit` explica o contraste com bullmq, que deixou de existir; comentário que descreve código ausente é a forma mais eficiente de enganar o próximo leitor.',
+    },
+
+    // ── apps/api/src/infra/queue/queue.module.spec.ts ─────────────────────────
+    {
+      file: 'apps/api/src/infra/queue/queue.module.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('registers nothing on the bullmq driver", end: '^  \\}\\);' },
+      reason:
+        'Caso que prova o guard bullmq, que saiu do módulo: sem ele o teste falha de verdade (o consumo agora é incondicional), não por ter ficado obsoleto.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: 'const config = \\{ get: jest\\.fn\\(\\)\\.mockReturnValue\\(driver\\) \\};',
+      reason: 'O módulo não recebe mais `ConfigService`; o dublê fica sem destino.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.spec.ts',
+      kind: 'replace',
+      pattern: "const build = \\(driver: 'memory' \\| 'bullmq'\\) =>",
+      replacement: 'const build = () =>',
+      reason: 'Com um driver só o parâmetro não escolhe nada; mantê-lo convida a passar `bullmq`.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.spec.ts',
+      kind: 'replace',
+      pattern: 'new QueueModule\\(config as never, queue, router\\)',
+      replacement: 'new QueueModule(queue, router)',
+      reason:
+        'Espelha o construtor podado; com o argumento a mais o ts-jest recusa a suíte (TS2554) e o arquivo inteiro deixa de rodar.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/queue.module.spec.ts',
+      kind: 'replace',
+      pattern: "build\\('memory'\\)",
+      replacement: 'build()',
+      reason: 'Acompanha a assinatura nova de `build`.',
     },
 
     // ── apps/api/src/core/queue/jobs.ts (mapa 3322-3323, 3399-3418) ───────────
@@ -197,6 +277,134 @@ export const queueManifest: FeatureManifest = {
         'Errors propagate to whoever enqueued: with the inline driver there is no\n        // retry, so a failure has to reach the caller instead of being swallowed.',
       reason:
         'O comentário promete retry, que o driver `memory` não tem (`memory-queue.adapter.ts:41` awaita inline); manter a promessa é pior que não ter comentário.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.ts',
+      // A causa do build quebrado em todo `--no-queue` — ver o cabeçalho deste manifesto.
+      // O comentário entra JUNTO porque o `.name` sem explicação parece descuido, e o
+      // próximo a "corrigir" para `envelope` quebra o build de novo.
+      kind: 'replace',
+      pattern:
+        '// An unknown name means a job was enqueued by a newer deploy than this\\s*//\\s*worker\\. Failing loudly gets it retried once the worker catches up,\\s*//\\s*instead of dropping it\\.\\s*const unknown: never = envelope;\\s*throw new Error\\(`No handler for job "\\$\\{\\(unknown as JobEnvelope\\)\\.name\\}"`\\);',
+      replacement:
+        '// Exhaustiveness is checked on `envelope.name`, not on `envelope`: with a\n        // single job in the catalogue the envelope type is no longer a union, and\n        // TypeScript only narrows an object to `never` by discriminant on a union.\n        // The name still narrows, so adding a job without a case fails the build.\n        // At runtime an unknown name only gets here through a cast; failing loudly\n        // surfaces it to whoever enqueued instead of dropping the job.\n        const unknown: never = envelope.name;\n        throw new Error(`No handler for job "${String(unknown)}"`);',
+      reason:
+        'Com um job só, `JobEnvelope` deixa de ser união e `const unknown: never = envelope` dá TS2322 — era o que derrubava build, typecheck e a suíte de TODO projeto `--no-queue`. O `.name` estreita e mantém a exaustividade.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.ts',
+      kind: 'dropLinesMatching',
+      pattern: 'private readonly logger = new Logger\\(JobRouter\\.name\\);',
+      reason:
+        'O único log do router era o resumo de `purgeExpiredTokens`, que saiu; um logger que ninguém chama é ruído.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.ts',
+      kind: 'dropImportSpecifier',
+      pattern: 'Logger',
+      target: '@nestjs/common',
+      reason: 'Acompanha a remoção do campo `logger`.',
+    },
+
+    // ── apps/api/src/infra/queue/job-router.service.spec.ts ───────────────────
+    // A suíte usa o `tokens.purge-expired` também como "o job sem tenant" dos testes de
+    // escopo. Esses testes FICAM — o escopo de sistema continua alcançável por
+    // `systemWide: true` — e passam a usar `mail.send` com `tenantId` nulo.
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: '// --- tokens\\.purge-expired -', end: '^  \\}\\);' },
+      reason:
+        'Casos do handler que saiu; com o nome fora de `JobPayloads` o ts-jest recusa a suíte inteira (TS2322), não só estes casos.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: 'const purgeJob = \\(tenantId', end: '^\\}\\);' },
+      reason: 'Fábrica de um envelope que não tipa mais contra o catálogo.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'replace',
+      pattern: "purgeJob\\((null|'')\\)",
+      replacement: 'mailJob($1)',
+      reason:
+        'Os testes de escopo precisam de UM job sem tenant, qualquer que seja; `mail.send` é o que sobrou, e o que eles provam (asSystem, string vazia) não depende do handler.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'replace',
+      pattern: 'expect\\(prisma\\.passwordResetToken\\.deleteMany\\)\\.not\\.toHaveBeenCalled\\(\\);',
+      replacement: 'expect(mail.send).not.toHaveBeenCalled();',
+      reason:
+        'O "trabalho dentro do asSystem" era observado pelo delete de tokens; com `mail.send` o efeito observável é o envio.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        'makePrismaMock\\(\\{\\s*passwordResetToken:[^\\n]*\\n\\s*emailVerificationToken:[^\\n]*\\n\\s*\\}\\)',
+      replacement: 'makePrismaMock()',
+      reason:
+        'Delegates das tabelas de token só existiam para o purge; deixá-los sugere que o router ainda escreve nelas.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        "it\\('lets a send failure propagate, so the queue retries it', async \\(\\) => \\{\\s*//[^\\n]*\\n\\s*//[^\\n]*\\n",
+      replacement:
+        "it('lets a send failure propagate to whoever enqueued', async () => {\n      // Inline there is no retry: the caller is the only one left who can notice,\n      // so swallowing here would turn an SMTP failure into mail never delivered.\n",
+      reason: 'Título e comentário prometiam o retry do bullmq, que o driver inline não tem.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        '// Reached when a newer deploy enqueued a job this worker does not know\\.\\s*//\\s*Failing gets it retried once the worker catches up; ignoring drops it\\.',
+      replacement:
+        '// Only reachable through a cast around the catalogue. Failing surfaces the\n      // mistake to whoever enqueued; ignoring would drop the job silently.',
+      reason: 'O cenário "deploy mais novo que o worker" deixou de existir junto com o worker.',
+    },
+    {
+      file: 'apps/api/src/infra/queue/job-router.service.spec.ts',
+      kind: 'dropImport',
+      pattern: '^@nestjs/common$',
+      reason: '`Logger` só era espionado nos casos do purge.',
+    },
+
+    // ── apps/api/src/infra/queue/memory-queue.adapter.spec.ts ─────────────────
+    {
+      file: 'apps/api/src/infra/queue/memory-queue.adapter.spec.ts',
+      kind: 'replace',
+      pattern: "adapter\\.enqueue\\('tokens\\.purge-expired', \\{\\}, \\{ systemWide: true \\}\\)",
+      replacement: "adapter.enqueue('mail.send', { message: MESSAGE }, { systemWide: true })",
+      reason:
+        'O caso prova `systemWide`, que continua no port; só o job de exemplo saiu do catálogo e derrubava a suíte com TS2345.',
+    },
+
+    // ── apps/api/src/core/queue/queue.provider.ts ─────────────────────────────
+    {
+      file: 'apps/api/src/core/queue/queue.provider.ts',
+      kind: 'replace',
+      pattern: 'Port for durable background work\\. Adapters: BullMQ \\(Redis\\) and Memory\\.',
+      replacement: 'Port for background work. Adapter: Memory — inline, no durability, no retry.',
+      reason: 'O port anuncia um adapter apagado.',
+    },
+    {
+      file: 'apps/api/src/core/queue/queue.provider.ts',
+      kind: 'replace',
+      pattern: 'Registered by the worker; never called from the API process\\.',
+      replacement: 'Registered by `QueueModule` in the API process, which runs jobs inline.',
+      reason:
+        'Inverteu de sentido: sem worker, quem registra o handler é o próprio API — o comentário original levaria alguém a "consertar" o `consume` do módulo e silenciar todo e-mail.',
+    },
+    {
+      file: 'apps/api/src/core/queue/queue.provider.ts',
+      kind: 'replace',
+      pattern: 'Starts consuming\\. The API process never calls this — only the worker does\\.',
+      replacement: 'Starts consuming. Called once by `QueueModule` on boot.',
+      reason: 'Mesmo motivo do `JobHandler`: sem worker, a regra descrita é o oposto da real.',
     },
 
     // ── apps/api/src/config/env.ts (mapa 3352-3355) ───────────────────────────

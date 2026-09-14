@@ -342,6 +342,53 @@ export const platformManifest: FeatureManifest = {
       reason:
         'Mapa F5 (b) linha 1887 e (k) linhas 2273-2277: é o ÚNICO `asPlatform()` de produção fora de `modules/platform/`. O `if (!tenantId)` explícito entra porque `AuthUser.tenantId` continua opcional (vem de um claim de JWT, não do banco) — e este guard é justamente o que já virou no-op silencioso uma vez por ler sem escopo: falhar fechado é obrigatório, não estilo.',
     },
+    // O spec do guard continuava descrevendo o mundo COM painel, e dois testes quebravam
+    // em runtime depois da costura acima (29 vetores da matriz profunda, todos com 2FA
+    // ligado e painel desligado):
+    //
+    // - `allows an authenticated user once 2FA is enabled` monta um usuário SEM tenant.
+    //   Com painel, isso era o SUPERADMIN e lia por `asPlatform`; sem painel, o
+    //   `if (!tenantId)` da costura recusa — que é exatamente o comportamento pedido.
+    // - `reads in platform scope for a SUPERADMIN` espia um `asPlatform` que já não existe.
+    //
+    // O conserto NÃO é afrouxar o guard para o spec passar. É dar empresa a todo usuário
+    // autenticado do spec — o que o banco passa a garantir sem painel, com `User.tenantId`
+    // NOT NULL — e trocar o teste do operador pelo teste do ramo que a costura criou: token
+    // sem tenant é recusado sem nem ler o banco. Sem esse teste, o fail-closed ficaria sem
+    // cobertura e voltaria a ser o no-op silencioso que o comentário da costura descreve.
+    //
+    // As três costuras abaixo são independentes de ordem de propósito: o teste novo usa
+    // `role: 'ADMIN'` para que o padrão de `USER` não o reescreva de volta com tenant.
+    // `required: false`: o spec só existe com `twoFactor` instalado.
+    {
+      file: 'apps/api/src/modules/auth/guards/two-factor-gate.guard.spec.ts',
+      kind: 'replace',
+      pattern: "describe\\('TwoFactorGateGuard', \\(\\) => \\{",
+      replacement:
+        "// Without the platform panel there is no tenantless operator: every\n// authenticated user belongs to a company.\nconst USER = { id: 'u1', tenantId: 't1' };\n\ndescribe('TwoFactorGateGuard', () => {",
+      reason:
+        'Declara o usuário autenticado padrão do spec, COM tenant. Uma constante em vez de repetir o objeto literal porque, com o `tenantId` inline, as chamadas passam de 100 colunas e o `prettier --check` do projeto gerado reprovaria o arquivo.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/auth/guards/two-factor-gate.guard.spec.ts',
+      kind: 'replace',
+      pattern: "makeContext\\(\\{ user: \\{ id: 'u1' \\} \\}\\)",
+      replacement: 'makeContext({ user: USER })',
+      reason:
+        'Todo usuário autenticado sem tenant do spec passa a ter tenant. Nos testes que devem PASSAR, sem isso o fail-closed da costura do guard recusa; nos que devem RECUSAR (sem 2FA, usuário invisível), sem isso eles passariam pelo motivo errado — a falta de tenant, não o que o nome do teste afirma.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/auth/guards/two-factor-gate.guard.spec.ts',
+      kind: 'replace',
+      pattern: "it\\('reads in platform scope for a SUPERADMIN, who has no tenant'[\\s\\S]*?\\n  \\}\\);",
+      replacement:
+        "it('refuses an authenticated user that carries no tenant (fail closed)', async () => {\n    prisma.user.findUnique.mockResolvedValue({ twoFactorEnabled: true });\n    const context = makeContext({ user: { id: 'u1', role: 'ADMIN' } });\n    // There is no scope to read in, so the guard must not fall back to the\n    // unscoped client — it refuses before touching the database.\n    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);\n    expect(prisma.user.findUnique).not.toHaveBeenCalled();\n  });",
+      reason:
+        'O teste do SUPERADMIN (que lia por `asPlatform`) vira o teste do ramo `if (!tenantId)` que a costura do guard introduz. `findUnique` responde "2FA ligado" de propósito: o único motivo para recusar é a falta de tenant.',
+      required: false,
+    },
 
     // ── ProfilePermissionsService ────────────────────────────────────────────
     {
@@ -949,6 +996,57 @@ export const plansManifest: FeatureManifest = {
         'Mapa F7 (b) linha 2539: o call site casa com a nova assinatura de 1 argumento de `toTenantDto`.',
     },
 
+    // ── signup.service.spec.ts: o spec ainda afirmava o plano ───────────────
+    //
+    // As costuras acima tiram o plano do SERVIÇO, mas o spec continuava cobrando: lia
+    // `result.tenant.planName` (TS2339 — o campo saiu de `tenantDtoSchema`, então o
+    // arquivo nem compila) e esperava `planId: 'plan-1'` no tenant criado (que falharia
+    // em runtime assim que compilasse). Todo vetor com registro público ligado e planos
+    // desligados caía aqui; como `platform` exige `plans`, eles aparecem na matriz como
+    // "painel desligado", mas a causa é só `plans`.
+    //
+    // Os dublês `makeStore(plan)`/`setup(plan)` e o `tx.plan.findFirst` FICAM: são
+    // inertes (o serviço já não os lê) e reescrever a assinatura de `setup`, chamada em
+    // vários testes, seria uma costura grande para ganho cosmético.
+    // `required: false`: o spec só existe com `publicSignup` instalado.
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: "^\\s*planId: 'plan-1',\\s*$",
+      reason: '`provisionTenant` já não grava `planId` no tenant (costura de `tenant-provisioning.ts`).',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.spec.ts',
+      kind: 'replace',
+      pattern: "\\{ slug: INPUT\\.slug, planName: 'Starter' \\}",
+      replacement: '{ slug: INPUT.slug }',
+      reason: '`planName` saiu do DTO da empresa; a asserção do slug continua valendo.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.spec.ts',
+      // `replace` e não `dropBlock`: o `dropBlock` apaga só as linhas do bloco e deixa a
+      // linha em branco de antes E a de depois, e duas linhas em branco seguidas reprovam o
+      // `prettier --check` do projeto gerado. A regex come o `\n` que abre o bloco junto.
+      kind: 'replace',
+      pattern: "\\n  it\\('takes the trial length from the default plan'[\\s\\S]*?\\n  \\}\\);\\n",
+      replacement: '',
+      reason: 'O teste é inteiro sobre o plano default ditar a duração do trial — mecanismo que sai com `plans`.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        "it\\('falls back to a 14-day trial and no plan when none is flagged default'[\\s\\S]*?\\n  \\}\\);",
+      replacement:
+        "it('gives every new company the 14-day trial', async () => {\n    const before = Date.now();\n    await service.signup(INPUT, ctx);\n\n    const { trialEndsAt } = store.rows('tenant')[0].data as { trialEndsAt: Date };\n    expect(daysFrom(before, trialEndsAt)).toBe(14);\n  });",
+      reason:
+        'O "fallback" vira a regra: sem planos, `FALLBACK_TRIAL_DAYS` é a única fonte da duração do trial (costura de `tenant-provisioning.ts`). O teste é mantido, e não apagado, porque o trial SOBREVIVE à remoção — é o que o `TenantStatusGuard` lê — e o `beforeEach` ainda oferece um plano de 30 dias, então ele prova que o serviço o ignora.',
+      required: false,
+    },
+
     // ── oauth.service.ts: a MESMA passagem de planName, no cadastro social ───
     //
     // `completeSignup` do OAuth é a terceira porta de criação de empresa, e copia do
@@ -1163,6 +1261,65 @@ export const plansManifest: FeatureManifest = {
       replacement: '',
       reason:
         'Mapa F7 (b) linha 2556: comentário que explica uma injeção que já não acontece. `required: false`: só existe com `invitations`.',
+      required: false,
+    },
+
+    // ── invitations.service.spec.ts: o spec ainda injetava e cobrava o plano ──
+    //
+    // As costuras acima tiram `planLimits` do construtor e as duas checagens de assento,
+    // mas o spec seguia passando 5 argumentos (TS2554 — o arquivo não compila, e junto
+    // cai a suíte inteira de convites) e tinha três testes que existem só para provar
+    // essas checagens. Os três SAEM, em vez de serem adaptados: sem `plans` não há
+    // assento para consumir nem teto para recusar, então não há comportamento que eles
+    // pudessem afirmar. O resto do `accept` (usuário criado, aceite legal, tokens) fica.
+    // `required: false`: o spec só existe com `invitations` instalado.
+    {
+      file: 'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*(let planLimits: any;|planLimits = \\{ assertCanAddUser: )',
+      reason: 'A declaração e o mock de `planLimits`: o dublê de um serviço que já não é injetado.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      kind: 'replace',
+      // Âncora pelo NOME do argumento, não pela lista inteira: `twoFactor`/`queue` não mexem
+      // nessa chamada hoje, mas se um dia mexerem esta costura continua casando.
+      pattern: '(new InvitationsService\\([^)]*?)\\bplanLimits, ',
+      replacement: '$1',
+      reason: 'O construtor perdeu o parâmetro `planLimits` (costura de `invitations.service.ts` acima).',
+      required: false,
+    },
+    // Os três testes saem por `replace`, não por `dropBlock`: o `dropBlock` apaga só as
+    // linhas do bloco e deixa a linha em branco de antes E a de depois — duas em branco
+    // seguidas, que o `prettier --check` do projeto gerado reprova. Cada regex come o `\n`
+    // que abre o bloco. O fim `\n    \}\);\n` é seguro como fim preguiçoso porque os `});`
+    // de DENTRO dos testes estão indentados com 6 espaços, não 4.
+    {
+      file: 'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      kind: 'replace',
+      pattern: "\\n    it\\('asks the plan for a seat before mailing anybody'[\\s\\S]*?\\n    \\}\\);\\n",
+      replacement: '',
+      reason: 'A checagem de cortesia na emissão, que saiu do serviço.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        "\\n    /\\*\\*\\n     \\* This is the authoritative seat check[\\s\\S]*?\\*/\\n    it\\('consumes the seat under the resolved tenant, in the same transaction'[\\s\\S]*?\\n    \\}\\);\\n",
+      replacement: '',
+      reason:
+        'A checagem autoritativa no aceite, com o doc que a explica ("the invite-time one is a courtesy") — sem ela o doc descreveria duas checagens que não existem.',
+      required: false,
+    },
+    {
+      file: 'apps/api/src/modules/invitations/invitations.service.spec.ts',
+      kind: 'replace',
+      pattern:
+        "\\n    it\\('refuses when the plan has no seat left, before creating anything'[\\s\\S]*?\\n    \\}\\);\\n",
+      replacement: '',
+      reason: 'O plano cheio recusando o aceite: com `plans` desligado não existe plano para encher.',
       required: false,
     },
 

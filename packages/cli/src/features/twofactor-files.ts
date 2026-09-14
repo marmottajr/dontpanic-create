@@ -1250,13 +1250,97 @@ export const twoFactorManifest: FeatureManifest = {
       reason:
         'Método privado de opções de cookie (oauth.service.ts:642-653), cujo maxAge é AuthService.LOGIN_TICKET_TTL — estático que esta remoção apaga, então deixá-lo é erro de compilação. Ausente se oauth saiu.',
     },
+    // O `auth` do construtor só existia para chamar `createLoginTicket` no desvio que a
+    // costura acima apaga — e o `exports: [AuthService]` do AuthModule sai nesta mesma
+    // remoção (costura de auth.module.ts). Deixar a injeção compila (noUnusedLocals está
+    // desligado no base), mas o Nest não resolve um provider que o módulo importado não
+    // exporta: o erro só aparece no boot, isto é, no e2e e em produção, nunca no `tsc`.
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*private readonly auth: AuthService,\\s*$',
+      required: false,
+      reason:
+        'Parâmetro do construtor (oauth.service.ts:109) sem uso depois do desvio de 2FA, e injetando um provider que o AuthModule deixa de exportar. Ausente se oauth saiu.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.ts',
+      kind: 'dropImportSpecifier',
+      // Âncora exata: `RequestContext`, do mesmo import, continua em uso.
+      pattern: '^AuthService$',
+      target: '\\.\\./services/auth\\.service$',
+      required: false,
+      reason:
+        'Especificador (oauth.service.ts:36). Sem o parâmetro do construtor e sem `AuthService.LOGIN_TICKET_TTL` (saiu com twoFactorTicketCookie), sobra só a menção num comentário. Ausente se oauth saiu.',
+    },
+
+    // ── oauth.service.spec.ts — o spec acompanha o service ──────────────────────────
+    //
+    // A costura antiga (`dropLinesMatching 'two-factor|2fa_required|twoFactorEnabled'`) foi
+    // escrita contra um spec que tinha esses literais nos testes. O do template v0.4.0 prova
+    // o caminho de segundo fator num `describe` próprio que não contém nenhum deles: a
+    // costura só levava a linha `userRow({ twoFactorEnabled: true })` de dentro do describe,
+    // e o import de `TWO_FACTOR_TICKET_COOKIE` (que sai do shared nesta remoção) ficava —
+    // TS2305 em toda a família oauth=1 / twoFactor=0. Agora cada peça sai pela estrutura
+    // (o describe inteiro, o import, o double), e nenhuma âncora toca a linha do `ctx` com
+    // `locale`, que é costura do manifesto de i18n. Todas `required: false`: o arquivo só
+    // existe com oauth ligado.
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropBlockWithLeadingDoc',
+      // O `end` confere o fechamento que o `dropBlock` acha por contagem a partir do
+      // `describe(` — os `it` de dentro fecham indentados e não casam `^`.
+      block: {
+        start: "^describe\\('OAuthService — [^']*second factor'",
+        end: '^\\}\\);',
+      },
+      required: false,
+      reason:
+        'O describe dos quatro testes do handoff para o código TOTP, com o doc-comment que explica o downgrade que ele fecha. Sem 2FA não há fator a contornar: o callback sempre emite sessão, o que o describe "known identity" já prova.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropImportSpecifier',
+      pattern: '^TWO_FACTOR_TICKET_COOKIE$',
+      required: false,
+      reason:
+        'Só os testes do describe acima o usavam, e o export sai do shared nesta remoção (causa do TS2305). Se ficar sozinho no import, o statement inteiro sai.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropBlockWithLeadingDoc',
+      // Bloco de uma linha: o `{` abre e fecha na própria linha, e o `end` a confere. O
+      // "leading doc" aqui são os três `//` colados acima, que justificam o double.
+      block: { start: '^\\s*const auth = \\{ createLoginTicket', end: 'createLoginTicket' },
+      required: false,
+      reason:
+        'O double de AuthService e o comentário sobre compartilhar o ticket com o fluxo de senha. O service deixa de receber AuthService (costura acima).',
+    },
     {
       file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
       kind: 'dropLinesMatching',
-      pattern: "two-factor|2fa_required|twoFactorEnabled",
+      pattern: '^\\s*auth as never,\\s*$',
       required: false,
       reason:
-        'Fixtures e asserções do caminho de segundo fator no spec do oauth. Ausente se oauth saiu.',
+        'Sétimo argumento de `new OAuthService(...)`. Com o parâmetro fora do construtor, sobrar dá TS2554 (esperava 6, recebeu 7).',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'replace',
+      pattern: 'cookies, auth \\}',
+      replacement: 'cookies }',
+      required: false,
+      reason: 'O `return` do `setup()` devolvia o double para o describe de 2FA consultar `kit.auth`.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropLinesMatching',
+      // Só a PROPRIEDADE da fixture — roda depois do describe ter saído, e não pode casar
+      // um `userRow({ twoFactorEnabled: true })` que por acaso sobreviva.
+      pattern: '^\\s*twoFactorEnabled: false,\\s*$',
+      required: false,
+      reason:
+        'Campo da fixture `userRow` (oauth.service.spec.ts:44). A coluna sai do model User nesta remoção; o double é um objeto solto e compilaria, mas descreveria uma linha que o banco não tem.',
     },
   ],
 };

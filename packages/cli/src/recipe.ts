@@ -288,7 +288,7 @@ export const FEATURE_INFO: Record<FeatureId, { label: string; summary: string }>
   },
   queue: {
     label: 'Fila de jobs',
-    summary: 'Port de fila com BullMQ. Desligado remove o port e injeta MAIL_PROVIDER direto.',
+    summary: 'Port de fila com BullMQ. Desligado, o port fica só com o driver memory, que roda o job dentro do request.',
   },
   captcha: { label: 'Captcha', summary: 'Turnstile ou reCAPTCHA nas rotas públicas.' },
   easterEggs: { label: 'Easter eggs', summary: 'Marvin, Konami no dashboard, GET /teapot.' },
@@ -1247,7 +1247,7 @@ export function validateRecipe(recipe: Recipe): RecipeIssue[] {
     issues.push({
       level: 'warning',
       message:
-        'Fila desligada: o port sai inteiro e os três services passam a injetar MAIL_PROVIDER direto. O e-mail é enviado DENTRO do request — sem retry, sem dedup por jobId, e um SMTP lento atrasa a resposta.',
+        'Fila desligada: o port de fila fica só com o driver memory, que roda o job inline — o e-mail é enviado DENTRO do request, sem retry, sem dedup por jobId, e um SMTP lento atrasa a resposta. Sem BullMQ, sem worker e sem a limpeza periódica de tokens.',
     });
   } else if (recipe.drivers.queue === 'memory') {
     issues.push({

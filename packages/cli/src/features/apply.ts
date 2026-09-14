@@ -163,17 +163,23 @@ export function expandPlaceholders(
   localeTag?: string,
 ): string {
   const surviving = localeTag ?? recipe.i18n.defaultLocale;
-  const dropped = recipe.i18n.locales.filter((locale) => locale !== recipe.i18n.defaultLocale);
+  // O descartado é o COMPLEMENTO do que sobra entre os dois catálogos do boilerplate, e não
+  // "o que está na receita e não é o default". Com i18n desligado a reconciliação já
+  // colapsou `locales` no default, então esse filtro devolvia lista vazia e o fallback
+  // `'en'` valia sempre — num projeto só em inglês as costuras apagavam o bloco `en` de
+  // `email-templates.ts` e deixavam o `pt-BR`, e o projeto não compilava. O `validateRecipe`
+  // só aceita `pt*` e `en*`, então o complemento é bem definido.
+  const dropped = emailLocaleOf(surviving) === 'pt-BR' ? 'en' : 'pt';
 
   return text
     .replace(/\{\{i18n\.defaultLocale\}\}/g, surviving)
     // `EmailLocale` é a chave estreita do segundo sistema bilíngue, o da API
     // (`email-templates.ts:13-32`): `pt-BR` ou `en`, não a tag BCP 47 inteira.
     .replace(/\{\{i18n\.emailLocale\}\}/g, emailLocaleOf(surviving))
-    .replace(/\{\{i18n\.droppedEmailLocaleKey\}\}/g, emailLocaleOf(dropped[0] ?? 'en'))
+    .replace(/\{\{i18n\.droppedEmailLocaleKey\}\}/g, emailLocaleOf(dropped))
     // A TAG completa do catálogo descartado (`en-US`), para as costuras que removem a
     // entrada dele de um mapa indexado por tag — `localeMeta` em `locales.ts`.
-    .replace(/\{\{i18n\.droppedLocaleTag\}\}/g, catalogueTagOf(dropped[0] ?? 'en'));
+    .replace(/\{\{i18n\.droppedLocaleTag\}\}/g, catalogueTagOf(dropped));
 }
 
 /** `pt-BR` → `pt-BR`; `en-US` → `en`. A tabela `STRINGS` da API usa essas duas chaves. */

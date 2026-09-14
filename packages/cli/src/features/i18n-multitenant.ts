@@ -347,6 +347,102 @@ export const i18nManifest: FeatureManifest = {
         'Este teste é SOBRE a escolha de idioma ("mails in English when that is the company\'s language") — com um idioma só não há escolha a provar, e `mailLocale()` passou a ser constante. Diferente dos de cima, aqui não há o que reescrever: o assunto do teste desapareceu. `required: false`: arquivo só existe com `platform`.',
     },
 
+    // ─── o `ctx` de spec tipado como `RequestContext` ────────────────────────────
+    //
+    // `oauth.service.spec.ts` e `signup.service.spec.ts` declaram um contexto de request
+    // compartilhado por quase todos os testes do arquivo:
+    //   const ctx = { ip: '1.2.3.4', userAgent: 'UA', locale: 'en' as const };
+    // O `as const` estreita `locale` para o literal `'en'`, e `RequestContext.locale` é
+    // `EmailLocale` — que a costura de `email-templates.ts` colapsou para o idioma que
+    // sobrou. Resultado: `TS2345` em cada chamada que recebe `ctx` (13 no oauth, 12 no
+    // signup), e o ts-jest derruba a SUÍTE inteira antes de rodar um teste. O `tsc` de
+    // build não vê: `*.spec.ts` fica fora do programa.
+    //
+    // O literal é reescrito para o idioma que sobrou pela ALTERNÂNCIA dos dois possíveis,
+    // não pelo placeholder `{{i18n.droppedEmailLocaleKey}}` das costuras acima. Motivo: com
+    // `i18n` desligado o `disableI18n` do `recipe.ts` já reduziu `recipe.i18n.locales` a um
+    // item, então o `expandPlaceholders` não tem idioma descartado para nomear e cai no
+    // fallback `'en'` — certo quando sobra o português, errado quando sobra o inglês (aí
+    // o padrão procuraria `'en'` e deixaria um `'pt-BR'` que não tipa). Casar os dois e
+    // escrever `{{i18n.emailLocale}}` funciona nos dois sentidos; quando o literal já é o
+    // do idioma que sobrou, a troca é idempotente.
+    //
+    // Reescrever, e não apagar, pelo mesmo motivo dos specs de auth/convite: ali o locale é
+    // de passagem — os testes provam vínculo de conta OAuth, emissão de tokens, criação de
+    // empresa e aceite de termos, nada que dependa do idioma.
+    ...[
+      'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      'apps/api/src/modules/auth/services/signup.service.spec.ts',
+    ].map((file) => ({
+      file,
+      kind: 'replace' as const,
+      pattern: "locale: '(?:pt-BR|en)' as const",
+      replacement: "locale: '{{i18n.emailLocale}}' as const",
+      required: false,
+      reason:
+        'O `ctx` compartilhado do spec estreita `locale` com `as const` para um idioma que `EmailLocale` pode não ter mais, e cada chamada que o recebe dá `TS2345` contra `RequestContext`. `required: false` porque o spec de OAuth só existe com a feature `oauth` e o de signup só com `publicSignup`.',
+    })),
+    // O signup, além de passar o `ctx`, AFIRMA o locale que chegou ao envio do código de
+    // verificação. Reescrito o `ctx`, a asserção tem de acompanhar — senão o spec passa a
+    // compilar e falha em runtime (`'en'` esperado, `'pt-BR'` recebido), trocando um erro
+    // de tipo por um vermelho que parece regressão do serviço.
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.spec.ts',
+      kind: 'replace',
+      pattern: "toHaveBeenCalledWith\\(user\\.id, INPUT\\.email, INPUT\\.name, '(?:pt-BR|en)'\\)",
+      replacement: "toHaveBeenCalledWith(user.id, INPUT.email, INPUT.name, '{{i18n.emailLocale}}')",
+      required: false,
+      reason:
+        'A asserção de que o código de verificação sai no idioma do request: com o `ctx` reescrito para o idioma que sobrou, o valor esperado muda junto. `required: false`: arquivo só existe com `publicSignup`.',
+    },
+    {
+      // O teste "sem locale no request cai no idioma default". Quando sobra o português é
+      // idempotente; quando sobra o inglês o default deixa de ser `'pt-BR'` (a costura de
+      // `ctx.locale ?? ...` em `signup.service.ts`, abaixo, troca o fallback) e a asserção
+      // precisa dizer o mesmo. O teste continua provando o que prova: request sem locale
+      // não quebra o envio.
+      file: 'apps/api/src/modules/auth/services/signup.service.spec.ts',
+      kind: 'replace',
+      pattern: "mock\\.calls\\[0\\]\\[3\\]\\)\\.toBe\\('(?:pt-BR|en)'\\)",
+      replacement: "mock.calls[0][3]).toBe('{{i18n.emailLocale}}')",
+      required: false,
+      reason:
+        'O fallback de locale ausente é o idioma que sobrou, não mais `pt-BR` por construção. `required: false`: arquivo só existe com `publicSignup`.',
+    },
+
+    // ── API · o fallback `ctx.locale ?? 'pt-BR'` dos serviços ────────────────
+    //
+    // Três serviços caem em `'pt-BR'` quando o request não trouxe locale. Com o português
+    // sobrando a troca é idempotente; com o inglês sobrando `EmailLocale` é `'en'` e o
+    // literal `'pt-BR'` dá `TS2345`/`TS2322` no próprio código de produção — o build
+    // quebra, não só o spec. Mesma alternância das costuras de spec acima, pelo mesmo
+    // motivo: `{{i18n.droppedEmailLocaleKey}}` não sabe nomear o idioma descartado.
+    {
+      file: 'apps/api/src/modules/auth/services/auth.service.ts',
+      kind: 'replace',
+      pattern: "ctx\\.locale \\?\\? '(?:pt-BR|en)'",
+      replacement: "ctx.locale ?? '{{i18n.emailLocale}}'",
+      reason:
+        '`resendVerification` cai num idioma fixo quando o request não traz locale; o fallback tem de ser o idioma que o projeto tem, senão não tipa contra `EmailLocale` quando sobra o inglês.',
+    },
+    {
+      file: 'apps/api/src/modules/users/services/users.service.ts',
+      kind: 'replace',
+      pattern: "ctx\\.locale \\?\\? '(?:pt-BR|en)'",
+      replacement: "ctx.locale ?? '{{i18n.emailLocale}}'",
+      reason:
+        'O código de confirmação da troca de e-mail usa o mesmo fallback fixo de `auth.service.ts`; mesmo colapso para o idioma que sobrou.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.ts',
+      kind: 'replace',
+      pattern: "ctx\\.locale \\?\\? '(?:pt-BR|en)'",
+      replacement: "ctx.locale ?? '{{i18n.emailLocale}}'",
+      required: false,
+      reason:
+        'O e-mail de verificação do cadastro público usa o mesmo fallback fixo. `required: false`: arquivo só existe com `publicSignup`.',
+    },
+
     // ── web · locales.ts podado para um idioma ───────────────────────────────
     //
     // As três costuras antigas sobre `request.ts` (tirar o import de `./locales`, tirar
@@ -436,14 +532,22 @@ export const i18nManifest: FeatureManifest = {
     {
       file: 'apps/api/src/modules/auth/support/email-templates.ts',
       kind: 'dropBalancedBlock',
-      pattern: '{{i18n.droppedEmailLocaleKey}}:\\s*\\{',
+      // Âncora no início da linha e aspa opcional: a chave `en` vem sem aspas, mas a `pt-BR`
+      // tem hífen e vem entre aspas (`'pt-BR': {`). Enquanto o descartado era sempre `en`
+      // (ver `expandPlaceholders`), a forma sem aspas bastava; num projeto só em inglês a
+      // costura não casava e a geração parava.
+      pattern: "^\\s*'?{{i18n.droppedEmailLocaleKey}}'?:\\s*\\{",
       reason:
         'Mapa 2990 (email-templates.ts:13-32): a tabela `STRINGS: Record<EmailLocale, CodeStrings>` tem uma entrada por idioma; a do idioma descartado sai. O `pattern` é PARAMETRIZADO PELO LOCALE (`pt-BR` ou `en`) — o apply.ts precisa montá-lo; o manifesto não pode nomeá-lo estaticamente. Literal de objeto aninhado (greeting é arrow function), daí a contagem de chaves.',
     },
     {
       file: 'apps/api/src/modules/invitations/support/invitation-email.ts',
       kind: 'dropBalancedBlock',
-      pattern: '{{i18n.droppedEmailLocaleKey}}:\\s*\\{',
+      // Âncora no início da linha e aspa opcional: a chave `en` vem sem aspas, mas a `pt-BR`
+      // tem hífen e vem entre aspas (`'pt-BR': {`). Enquanto o descartado era sempre `en`
+      // (ver `expandPlaceholders`), a forma sem aspas bastava; num projeto só em inglês a
+      // costura não casava e a geração parava.
+      pattern: "^\\s*'?{{i18n.droppedEmailLocaleKey}}'?:\\s*\\{",
       required: false,
       reason:
         'Mapa 2990-2991 e 3004 (invitation-email.ts:23): o gêmeo da tabela `STRINGS`, com o mesmo colapso. `required: false` porque o arquivo só existe se a feature `invitations` estiver instalada.',

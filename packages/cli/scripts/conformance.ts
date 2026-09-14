@@ -370,11 +370,24 @@ async function prepararBanco(dir: string): Promise<string | undefined> {
     (async () => {
       await c.connect();
       const u = process.env.DONO, s = process.env.SENHA, b = process.env.BANCO;
-      const jaTem = await c.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [u]);
+      const jaTem = await c.query('SELECT rolbypassrls FROM pg_roles WHERE rolname = $1', [u]);
       if (jaTem.rowCount === 0) {
         // CREATEDB porque o global-setup cria o banco de e2e; CREATEROLE porque a
         // migration da role restrita roda com esta conexão.
-        await c.query(\`CREATE ROLE "\${u}" LOGIN CREATEDB CREATEROLE PASSWORD '\${s}'\`);
+        //
+        // BYPASSRLS porque é o que o dono TEM no ambiente que o projeto gerado espera.
+        // Lá ele é o superusuário do container (POSTGRES_USER), e superusuário ignora
+        // RLS. As tabelas de tenant têm FORCE ROW LEVEL SECURITY, que sujeita até o
+        // dono às policies — então sem BYPASSRLS o e2e não consegue nem semear as duas
+        // empresas pela conexão de dono, e 31 testes caem com "new row violates
+        // row-level security policy", nenhum deles pelo motivo que o teste verifica.
+        // BYPASSRLS e não SUPERUSER: é exatamente a propriedade de que o seed precisa. A
+        // role restrita da aplicação, sob a qual o isolamento é provado, não é tocada.
+        await c.query(\`CREATE ROLE "\${u}" LOGIN CREATEDB CREATEROLE BYPASSRLS PASSWORD '\${s}'\`);
+      } else if (!jaTem.rows[0].rolbypassrls) {
+        // Role criada por uma versão anterior deste script, sem BYPASSRLS. Num Postgres
+        // local reaproveitado ela sobrevive entre execuções e o e2e seguiria falhando.
+        await c.query(\`ALTER ROLE "\${u}" BYPASSRLS\`);
       }
       const temBanco = await c.query('SELECT 1 FROM pg_database WHERE datname = $1', [b]);
       if (temBanco.rowCount === 0) {

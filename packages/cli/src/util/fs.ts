@@ -71,8 +71,15 @@ export const NEVER_REWRITE = new Set([
  * `.env` é o outro caso crítico: é o `.env` REAL da máquina de quem sincronizou o
  * template, com segredos de dev dentro. O gerado recebe um `.env` novo, com segredos
  * novos (passo de env, outro módulo).
+ *
+ * `.git` está aqui além de em `NEVER_TRAVERSE`, e as duas listas não se cobrem. Aquela é
+ * consultada para DIRETÓRIOS; num `git worktree`, `.git` é um ARQUIVO de uma linha
+ * (`gitdir: /caminho/.git/worktrees/x`). Sincronizar o template a partir de uma worktree
+ * copiava esse arquivo, e todo projeto gerado nascia com um `.git` apontando para um
+ * caminho da máquina de quem sincronizou — o `git init` do gerador falha em cima dele.
  */
 export const NEVER_COPY_NAMES = new Set([
+  '.git',
   'pnpm-lock.yaml',
   'package-lock.json',
   'yarn.lock',

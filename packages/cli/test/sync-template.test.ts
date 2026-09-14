@@ -14,6 +14,7 @@ import {
   resolveCommit,
 } from '../scripts/sync-template.ts';
 import { run } from '../src/util/exec.ts';
+import { isNeverCopied } from '../src/util/fs.ts';
 
 /** Repo git descartável, com um commit. */
 async function makeRepo(): Promise<string> {
@@ -120,6 +121,13 @@ describe('exclusões', () => {
     assert.ok(
       EXCLUDED_REL_PATHS.includes('.github/workflows/publish-create-dontpanic.yml'),
     );
+  });
+
+  it('não copia um .git que seja ARQUIVO, como o de uma git worktree', () => {
+    // `NEVER_TRAVERSE` só barra `.git` diretório. Numa worktree `.git` é um arquivo com
+    // `gitdir: <caminho local>`, e sincronizar dali o punha dentro do template — todo
+    // projeto gerado nasceria com um `.git` apontando para a máquina de outra pessoa.
+    assert.equal(isNeverCopied('.git'), true);
   });
 });
 

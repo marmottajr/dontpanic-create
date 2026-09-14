@@ -117,11 +117,13 @@ async function checkNoOldName(
  * artefato detecta.
  */
 async function checkBuildArtifacts(caseId: string, dir: string): Promise<Violation[]> {
-  const required = [
-    'packages/shared/dist/index.js',
-    'apps/api/dist/main.js',
-    'apps/api/dist/worker.js',
-  ];
+  const required = ['packages/shared/dist/index.js', 'apps/api/dist/main.js'];
+  // O worker só existe com a fila: `queue` desligada apaga `src/worker.ts` (não há BullMQ
+  // para consumir, o job roda inline no request). Exigir `dist/worker.js` sempre fazia
+  // toda receita `--no-queue` reprovar aqui com build, testes e e2e verdes — o artefato
+  // que "faltava" era um que a receita não deve ter. A regra é o fonte: se há worker.ts,
+  // tem de haver worker.js.
+  if (await pathExists(join(dir, 'apps/api/src/worker.ts'))) required.push('apps/api/dist/worker.js');
 
   const violations: Violation[] = [];
   for (const rel of required) {

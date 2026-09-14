@@ -208,6 +208,26 @@ describe('validateRecipe — combinações inválidas', () => {
     }, 'código de idioma');
   });
 
+  it('recusa idioma sem catálogo no boilerplate, em vez de gerar sem ele', () => {
+    // `es` passava na validação e o projeto nascia só com pt-BR e en-US: a poda mapeia
+    // todo código não-`pt` para en-US. Um idioma pedido e ausente sem aviso.
+    rejects((r) => {
+      r.i18n.locales = ['pt', 'en', 'es'];
+    }, 'não tem catálogo');
+    rejects((r) => {
+      r.features.i18n = false;
+      r.i18n.locales = ['de'];
+      r.i18n.defaultLocale = 'de';
+    }, 'não tem catálogo');
+    // As formas que existem continuam aceitas, curtas ou com região.
+    for (const locales of [['pt', 'en'], ['pt-BR', 'en-US'], ['en']]) {
+      const recipe = presetRecipe('saas', PROJECT);
+      recipe.i18n.locales = locales;
+      recipe.i18n.defaultLocale = locales[0] as string;
+      assert.ok(!errorsOf(recipe).some((m) => m.includes('catálogo')), locales.join(','));
+    }
+  });
+
   it('avisa — sem recusar — quando o seed é a única porta de entrada (I19)', () => {
     const recipe = presetRecipe('minimal', PROJECT);
     assert.deepEqual(errorsOf(recipe), []);

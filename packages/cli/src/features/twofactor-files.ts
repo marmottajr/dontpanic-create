@@ -722,6 +722,22 @@ export const twoFactorManifest: FeatureManifest = {
         'test/auth.e2e-spec.ts:536-576 aprox. Este arquivo é dono de um prefixo de slug/e-mail e limpa o que semeou com DELETE (regra 1 da suíte e2e determinística): remover um it() não afeta a limpeza, mas NUNCA troque por TRUNCATE.',
     },
     {
+      file: 'apps/api/test/e2e-app.ts',
+      kind: 'replace',
+      // Faltava, e o sintoma não parecia com a causa. Com a tabela apagada pelo schema, o
+      // `TRUNCATE` do `resetDb()` aborta com `42P01 relation "two_factor_backup_codes" does
+      // not exist` — no `beforeEach` (todo teste da suíte falha) e no `afterAll`. Como o
+      // `afterAll` das suítes chama `resetDb()` ANTES de `app.close()`, a exceção pula o
+      // fechamento, o servidor Nest fica escutando, e o Jest espera para sempre por um
+      // handle aberto: a conformidade do preset mínimo ficou 17 minutos parada em
+      // `test:e2e`, sem conexão nenhuma no Postgres. Mesma costura que `plans` e `oauth`
+      // já tinham para as tabelas deles.
+      pattern: '"two_factor_backup_codes",\\s*',
+      replacement: '',
+      reason:
+        'O `TRUNCATE TABLE` do `resetDb()` nomeia as tabelas de domínio explicitamente; `two_factor_backup_codes` sai com o model `TwoFactorBackupCode`, e citar tabela inexistente derruba toda suíte e2e no primeiro reset — e, pelo `afterAll`, deixa a app aberta e o Jest pendurado.',
+    },
+    {
       file: 'apps/api/jest.config.js',
       kind: 'replace',
       pattern:

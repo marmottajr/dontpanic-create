@@ -26,6 +26,7 @@ import { readFile } from 'node:fs/promises';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { readAsset } from '../assets.ts';
 import { assertWithin, listFiles, pathExists, readText, writeText } from '../util/fs.ts';
 import type { FeatureId, GeneratorContext, Recipe, SeamEdit, SeamKind } from '../types.ts';
 import { FEATURE_IDS } from '../types.ts';
@@ -328,15 +329,49 @@ export async function applyFeatureRemoval(
 
     // O conteúdo PRISTINO fica guardado: é o oráculo que distingue "o manifesto
     // envelheceu" de "outra feature já removeu isto". Ver o comentário em `cause`.
-    const original = await readText(abs);
+    //
+    // `let` porque uma `swapVariant` troca o pristino: depois dela, a linha de base do
+    // arquivo é a VARIANTE, não o template. Sem essa troca, uma costura de outra feature
+    // que não casasse na variante seria comparada com o template original, casaria lá, e
+    // sairia como `sobreposta` — pulada em silêncio. É exatamente o defeito que o oráculo
+    // existe para denunciar: a variante envelheceu em relação às costuras que a editam.
+    let original = await readText(abs);
     let content = original;
     let touched = false;
+
+    // A troca de arquivo inteiro vai PRIMEIRO, qualquer que seja a ordem de remoção.
+    //
+    // A ordem de `edits` vem do grafo de features, e o grafo não sabe nada de arquivo: se
+    // `twoFactor` sai antes de `publicSignup`, as costuras de 2FA podariam o template e a
+    // variante, aplicada depois, sobrescreveria a poda — devolvendo os testes de TOTP e o
+    // import de `otplib` a um projeto sem 2FA. Com a troca na frente, as outras costuras
+    // editam a variante, e a variante é escrita para que as âncoras delas casem.
+    // `sort` é estável, então a ordem relativa das demais não muda.
+    edits.sort((a, b) => Number(b.seam.kind === 'swapVariant') - Number(a.seam.kind === 'swapVariant'));
+
+    // Os assets são lidos aqui, antes do laço, porque `applySeam` é síncrono e puro (ver
+    // `SeamOptions.asset`). Asset ausente fica fora do mapa e vira "não casou" — que
+    // uma costura `required` transforma em falha nomeando o arquivo.
+    const assets = new Map<string, string>();
+    for (const { seam } of edits) {
+      if (seam.kind !== 'swapVariant' || seam.replacement === undefined) continue;
+      const name = expandSeam(seam, recipe, localeTag).replacement ?? seam.replacement;
+      const variant = await readAsset(name);
+      if (variant === undefined) {
+        result.warnings.push(
+          `[${file}] variante embarcada ausente no pacote do gerador: ${name}. ` +
+            'Se o pacote veio do npm, o diretório `assets/` ficou fora do `files` do package.json.',
+        );
+        continue;
+      }
+      assets.set(name, variant);
+    }
 
     for (const { feature, seam } of edits) {
       const expanded = expandSeam(seam, recipe, localeTag);
       let outcome;
       try {
-        outcome = applySeam(expanded, content, { asset: () => undefined });
+        outcome = applySeam(expanded, content, { asset: (name) => assets.get(name) });
       } catch (error) {
         if (error instanceof SeamStructureError) {
           // Numa costura OPCIONAL, falha estrutural é o mesmo fenômeno que "não casou",
@@ -375,6 +410,8 @@ export async function applyFeatureRemoval(
       if (outcome.matched) {
         content = outcome.content;
         touched = true;
+        // A variante passa a ser o pristino deste arquivo — ver o comentário em `original`.
+        if (seam.kind === 'swapVariant') original = content;
         result.seamsApplied.push({
           file,
           kind: seam.kind,

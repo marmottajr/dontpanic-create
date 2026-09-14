@@ -994,16 +994,21 @@ export const publicSignupManifest: FeatureManifest = {
     // ── A SUÍTE E2E — o item mais caro da remoção ──────────────────────────────
     {
       file: 'apps/api/test/auth.e2e-spec.ts',
-      // ⚠ SEAMKIND NOVO — não existe em `SeamKind` ainda; o pai é dono de `types.ts`.
-      // Este literal NÃO TIPA até `'swapVariant'` ser adicionado ao union.
       kind: 'swapVariant',
       replacement: 'assets/variants/api/test/auth.e2e-spec.no-public-signup.ts',
-      // `required: false` porque o ASSET ainda não existe no pacote do gerador. Não é
-      // tolerância: é a diferença entre "o gerador está incompleto aqui" — que sai como
-      // aviso alto, nomeando o asset que falta — e "o gerador está quebrado", que mataria
-      // toda geração sem public-signup. Escrever a variante é trabalho pendente, e o
-      // aviso é o que impede que ele seja esquecido.
-      required: false,
+      // `required: true` agora que a variante existe. Enquanto ela não existia, a costura
+      // era opcional e o projeto gerado nascia com uma suíte que dava 404 em todo teste
+      // de auth (foi o que o CI com `--e2e` pegou no preset `internal`). Com o asset no
+      // pacote, a ausência dele só pode significar pacote mal publicado — e isso tem de
+      // parar a geração, não virar um aviso que ninguém lê.
+      //
+      // A variante é escrita contra o template da tag em `template.json` e tem de ser
+      // revista a cada subida de tag: ela é uma CÓPIA do arquivo original, e cópia não
+      // acompanha o original sozinha. Duas coisas a mantêm honesta: as costuras de
+      // `twoFactor` sobre este arquivo editam a variante (a troca vem primeiro, ver
+      // `apply.ts`) e são `required`, então uma âncora que deixou de casar para a
+      // geração; e o teste em `test/features.test.ts` aplica essas costuras à variante.
+      required: true,
       reason:
         'A suíte faz nascer TODA conta por `POST /api/auth/signup` (91, 243, 342, 347, 359, 363, 372, 380, 389, 410 e o doc-comment 15-18); o mapa (3730-3735) prescreve reescrevê-la para semear com `ownerDb()` (`e2e-app.ts:214`), como invitations/tenant-isolation/table-store já fazem. Sem isso o projeto gerado tem uma suíte e2e incapaz de criar usuário — deliverable quebrado, vermelho no primeiro clone. Nenhuma regex expressa essa reescrita, daí a variante pré-escrita.',
     },
@@ -1053,19 +1058,48 @@ export const publicSignupManifest: FeatureManifest = {
       reason:
         'O handler `POST auth/signup` inteiro: doc-comment, `@Public()`, `@SystemScope()`, `@Post`, `@SensitiveThrottle()`, `@RequireCaptcha` e corpo. Ele leva consigo UM `@SystemScope()` — daí a costura na allowlist abaixo.',
     },
+    // Dois `dropImportSpecifier`, e não um `dropLinesMatching 'SignupResponse|SignupDto'`.
+    // A forma antiga apagava LINHAS, assumindo os imports quebrados um nome por linha. Com
+    // 2FA desligado, `twoFactor` tira `TwoFactorVerifyDto` do import de `./dto/auth.dto` e o
+    // reescreve numa linha só — e aí a linha que contém `SignupDto` é o import INTEIRO:
+    // `VerifyEmailDto`, `LoginDto`, `ForgotPasswordDto`… sumiam juntos (TS2304 em cascata no
+    // controller). Mesmo defeito, e mesma causa, da costura de `auth.dto.ts` logo abaixo.
+    // Nome ancorado (`^…$`): o padrão é regex, e `SignupResponse` solto casaria também um
+    // `CompleteOAuthSignupResponse` que algum dia apareça no mesmo import.
     {
       file: 'apps/api/src/modules/auth/auth.controller.ts',
-      kind: 'dropLinesMatching',
-      pattern: 'SignupResponse|SignupDto',
+      kind: 'dropImportSpecifier',
+      pattern: '^SignupResponse$',
+      reason: 'O tipo de resposta do signup, importado de `@dontpanic/shared` (mapa 3772).',
+    },
+    {
+      file: 'apps/api/src/modules/auth/auth.controller.ts',
+      kind: 'dropImportSpecifier',
+      pattern: '^SignupDto$',
+      reason: 'O DTO do signup na lista de imports de `./dto/auth.dto` (mapa 3775).',
+    },
+    {
+      file: 'apps/api/src/modules/auth/dto/auth.dto.ts',
+      // DUAS costuras, e não uma `dropLinesMatching` com as duas linhas numa alternância.
+      //
+      // A forma antiga (`signupSchema,|export class SignupDto…`) assumia o import em várias
+      // linhas, com `signupSchema,` sozinho numa delas. Mas `twoFactor` passa antes pelo
+      // mesmo import com `dropImportSpecifier`, que o reescreve numa linha só — e ali
+      // `signupSchema` é o último nome, sem vírgula. A alternância continuava casando a
+      // linha da CLASSE, então a costura contava como aplicada e o import ficava: TS2305
+      // `signupSchema` e, em cascata, todos os DTOs do arquivo sem tipo. Com 2FA ligado o
+      // defeito não aparecia, por isso nenhum preset o pegou. `dropImportSpecifier` entende
+      // o import em qualquer forma, e cada metade passa a ter o seu próprio "casou".
+      kind: 'dropImportSpecifier',
+      pattern: '^signupSchema$',
       reason:
-        'O tipo de resposta (import de `@dontpanic/shared`) e o DTO na lista de imports do controller (mapa 3772, 3775).',
+        'O nome `signupSchema` no import de `@dontpanic/shared`: o schema sai do pacote compartilhado, e o import em qualquer forma (várias linhas, ou uma só depois da poda de 2FA) para de compilar.',
     },
     {
       file: 'apps/api/src/modules/auth/dto/auth.dto.ts',
       kind: 'dropLinesMatching',
-      pattern: 'signupSchema,|export class SignupDto extends createZodDto\\(signupSchema\\) \\{\\}',
-      reason:
-        'O import do schema e a classe DTO: `signupSchema` sai de `@dontpanic/shared`, então as duas linhas param de compilar juntas.',
+      pattern: 'export class SignupDto extends createZodDto\\(signupSchema\\) \\{\\}',
+      reason: 'A classe DTO do signup, que usa o schema removido.',
     },
     {
       file: 'apps/api/src/modules/auth/services/auth.service.ts',
@@ -1188,25 +1222,27 @@ export const publicSignupManifest: FeatureManifest = {
       reason:
         'Doc de `platformCreateTenantSchema` (mapa 3848) comparando com um schema apagado. Opcional porque o schema só existe se `platform` estiver ligada.',
     },
-    {
-      file: 'packages/shared/src/oauth.ts',
-      kind: 'dropLinesMatching',
-      pattern: "'signup_disabled',|signupEnabled: z\\.boolean\\(\\),",
-      required: false,
-      reason:
-        'A entrada em `oauthErrorCodes` e o campo `signupEnabled` do payload de discovery (mapa 3854-3856). `required: false` porque o arquivo só existe se `oauth` estiver ligada — sem signup como código, a identidade social desconhecida só pode ser recusada (`no_account`), então o código e o campo perdem sentido.',
-    },
-    {
-      file: 'packages/shared/src/oauth.ts',
-      kind: 'dropBlock',
-      block: {
-        start: 'export const completeOAuthSignupSchema',
-        end: 'export type CompleteOAuthSignupResponse = z\\.infer<[^>]*>;',
-      },
-      required: false,
-      reason:
-        'O contrato da tela "complete seu cadastro", que existia só para criar empresa a partir de identidade social verificada (mapa 3857). Opcional: depende de oauth estar ligada.',
-    },
+    // `packages/shared/src/oauth.ts`: NENHUMA costura, de propósito.
+    //
+    // Havia duas — tiravam `'signup_disabled'`, `signupEnabled: z.boolean()` e o bloco
+    // `completeOAuthSignupSchema…CompleteOAuthSignupResponse`. Elas só se aplicam com oauth
+    // LIGADO (sem oauth o arquivo inteiro sai), e é justamente nesse caso que a API
+    // CONTINUA usando os três: `oauth.controller` expõe `POST auth/oauth/complete-signup`
+    // com `CompleteOAuthSignupDto`, `oauth.dto.ts` embrulha o schema, `listProviders()`
+    // devolve `signupEnabled`, e `parkPendingRegistration` redireciona com `signup_disabled`.
+    // O resultado era um contrato apagado de um lado só: 13 erros de tipo na API em toda a
+    // família oauth=1 / publicSignup=0.
+    //
+    // Havia duas saídas coerentes. (a) Remover o fluxo de completar cadastro de ponta a
+    // ponta — rota, DTO, `completeSignup` e os ramos de `parkPendingRegistration` no
+    // service, uns 20 testes do spec — e só então o schema. (b) Manter o contrato e tornar
+    // o predicado constante-falso. Escolhida (b), pela mesma razão que já justificava a
+    // costura do predicado abaixo (I6): ela recusa duro a identidade que ninguém tem com
+    // uma edição de UMA linha, sem reescrever os dois gates. O endpoint sobrevive, mas só
+    // responde 403 — mesmo comportamento do boilerplate com `PUBLIC_SIGNUP_ENABLED=false`,
+    // que é uma configuração que ele suporta e testa. (a) seria mais limpo, e é o
+    // caminho se o endpoint morto incomodar; o custo é uma superfície de costuras dez
+    // vezes maior sobre um service de 600 linhas, cada uma podendo envelhecer.
     {
       file: 'packages/shared/src/invitation.ts',
       kind: 'replace',
@@ -1227,17 +1263,11 @@ export const publicSignupManifest: FeatureManifest = {
     },
 
     // ── apps/api/src/modules/auth/oauth/** — a perna "identidade desconhecida" ─
-    {
-      file: 'apps/api/src/modules/auth/oauth/oauth.service.ts',
-      kind: 'dropBlock',
-      block: {
-        start: 'private signupEnabled\\(\\)',
-        end: '^\\s*\\}\\s*$',
-      },
-      required: false,
-      reason:
-        'O helper que lê `PUBLIC_SIGNUP_ENABLED` (`:594-596`) e a env que ele lê saem juntos; deixá-lo faria `config.get` recusar a chave no tipo `Env`. Opcional: só existe se `oauth` estiver ligada (mapa 3990-3999).',
-    },
+    // NÃO há `dropBlock` de `private signupEnabled()`. Havia, e ele rodava ANTES da costura
+    // abaixo: o método sumia inteiro, o `replace` do corpo não achava mais o que casar (e
+    // é `required: false`, então calava), e as três chamadas `this.signupEnabled()`
+    // ficavam órfãs — TS2339 no service. As duas costuras descreviam decisões opostas para
+    // o mesmo método; a que vale é a de baixo, que o próprio comentário dela justifica.
     {
       file: 'apps/api/src/modules/auth/oauth/oauth.service.ts',
       // REESCRITO na integração. A versão anterior apagava toda LINHA com
@@ -1260,6 +1290,89 @@ export const publicSignupManifest: FeatureManifest = {
       required: false,
       reason:
         'O predicado que os três usos do flag consultam: o campo de `listProviders()` (:119), o desvio de `parkPendingRegistration` (:404-407) e o 403 de `completeSignup` (:430-432). Vira constante-falso em vez de ter as linhas apagadas — duas delas são `if (!this.signupEnabled()) {` e levariam o `{` junto. Mapa 4001-4008 e I6. Opcional: depende de oauth.',
+    },
+
+    // ── oauth.service.spec.ts — o spec acompanha o predicado constante-falso ─────────
+    //
+    // Sem estas, a família oauth=1 / publicSignup=0 compilava e caía no `pnpm test`: o spec
+    // monta o service com `PUBLIC_SIGNUP_ENABLED: true` e testa o cadastro social dando
+    // CERTO. Com o predicado constante-falso, a identidade desconhecida vai para
+    // `no_account` e todo `completeSignup` para no 403 antes de ler o ticket — 13 testes
+    // vermelhos, todos descrevendo uma porta que este projeto não tem. Os testes que
+    // descrevem a porta FECHADA (`no_account`, `signup_disabled`, o 403) continuam valendo
+    // e ficam. Todas `required: false`: o arquivo só existe com oauth ligado.
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropLinesMatching',
+      pattern: '^\\s*PUBLIC_SIGNUP_ENABLED: true,\\s*$',
+      required: false,
+      reason:
+        'A fixture de config liga um flag que saiu do env. Deixá-la não quebra (o double de config é um `Record` solto), mas mente sobre o que o service lê.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'replace',
+      pattern: "toEqual\\(\\{ providers: \\['google'\\], signupEnabled: true \\}\\)",
+      replacement: "toEqual({ providers: ['google'], signupEnabled: false })",
+      required: false,
+      reason:
+        'O payload de discovery publica o predicado, que agora é sempre falso — é o que diz ao browser para não oferecer cadastro social.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('parks the verified identity and sends the browser to the company form'", end: '\\}\\);' },
+      required: false,
+      reason:
+        'Testa o "terceiro caso" do OAuth: identidade desconhecida estacionada e mandada para `/signup/complete`. Sem registro público ela é recusada (`no_account`), o que os dois testes seguintes do mesmo describe já provam.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'replace',
+      // O describe inteiro, até o PRIMEIRO `});` na coluna zero — os `it` de dentro fecham
+      // indentados, então o preguiçoso para no fechamento do describe e não antes.
+      pattern: "describe\\('OAuthService — completeSignup', \\(\\) => \\{[\\s\\S]*?\\n\\}\\);\\n",
+      replacement:
+        "describe('OAuthService — completeSignup', () => {\n" +
+        '  // Sem registro público, completar um cadastro social é sempre recusado: o predicado\n' +
+        '  // é constante-falso e o 403 vem antes de o ticket ser sequer lido. É o único\n' +
+        '  // comportamento que a rota ainda tem, e é o que este describe prova.\n' +
+        "  it('refuses outright — there is no public registration to complete', async () => {\n" +
+        '    const kit = setup();\n' +
+        '    await expect(\n' +
+        '      kit.service.completeSignup(\n' +
+        "        { ticket: 'ticket-token', companyName: 'Sirius Cybernetics', slug: 'sirius', name: 'Arthur Dent', acceptTerms: true },\n" +
+        '        ctx,\n' +
+        '        makeReply() as never,\n' +
+        '      ),\n' +
+        '    ).rejects.toThrow(ForbiddenException);\n' +
+        '    expect(kit.cache.get).not.toHaveBeenCalled();\n' +
+        '  });\n' +
+        '});\n',
+      required: false,
+      reason:
+        'Os 12 testes do cadastro social dando certo (ou falhando por ticket, slug, colisão) param todos no 403 do predicado. Fica um teste só, o da recusa, que é o contrato real da rota neste projeto.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropImportSpecifier',
+      pattern: 'BadRequestException',
+      required: false,
+      reason: 'Só os testes de ticket inválido do `completeSignup` o usavam; sobrando, o lint do projeto gerado recusa o import sem uso.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropImportSpecifier',
+      pattern: 'ConflictException',
+      required: false,
+      reason: 'Só o teste de slug reservado do `completeSignup` o usava.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropImportSpecifier',
+      pattern: 'LEGAL_VERSIONS',
+      required: false,
+      reason: 'Só a asserção de aceite dos termos no cadastro social o usava.',
     },
 
     // ── apps/web (mapa 3789-3806) ─────────────────────────────────────────────

@@ -290,8 +290,10 @@ async function askConditionals(recipe: Recipe): Promise<Recipe> {
             .map((p) => p.trim())
             .filter(Boolean);
           if (parts.length === 0) return 'Informe pelo menos um idioma.';
-          const bad = parts.filter((p) => !/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(p));
-          if (bad.length > 0) return `Não parece código de idioma: ${bad.join(', ')}. Use pt, en, es, pt-BR.`;
+          // Só pt e en: são os catálogos que o boilerplate tem (ver `validateRecipe`).
+          const bad = parts.filter((p) => !/^(pt|en)(-[A-Za-z]{2,4})?$/.test(p));
+          if (bad.length > 0)
+            return `Sem catálogo no boilerplate: ${bad.join(', ')}. Os idiomas disponíveis são pt e en.`;
           return undefined;
         },
       }),

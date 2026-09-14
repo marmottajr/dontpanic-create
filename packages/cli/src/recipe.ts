@@ -1291,11 +1291,24 @@ export function validateRecipe(recipe: Recipe): RecipeIssue[] {
     issues.push({ level: 'error', message: 'A lista de idiomas está vazia.' });
   }
 
+  // Os idiomas que o boilerplate TEM: `apps/web/messages/pt-BR.json` e `en-US.json`, e o
+  // `EmailLocale` da API é `'pt-BR' | 'en'`. A poda mapeia todo código por prefixo
+  // (`pt*` → pt-BR, qualquer outro → en-US), então um `es` não gerava catálogo nenhum:
+  // o CLI imprimia "idiomas: pt, en, es" e o projeto nascia com `locales = ['pt-BR',
+  // 'en-US']`, sem espanhol e sem aviso. Um idioma pedido e silenciosamente ausente é a
+  // pior das duas saídas — recusar é a disciplina do resto deste arquivo. Quando o
+  // boilerplate ganhar um catálogo novo, ele entra aqui.
+  const CATALOG_LOCALE = /^(pt|en)(-[A-Za-z]{2,4})?$/;
   for (const locale of recipe.i18n.locales) {
     if (!LOCALE_RE.test(locale)) {
       issues.push({
         level: 'error',
-        message: `"${locale}" não é um código de idioma válido. Use a forma BCP 47 curta: pt, en, es, pt-BR.`,
+        message: `"${locale}" não é um código de idioma válido. Use a forma BCP 47 curta: pt, en, pt-BR, en-US.`,
+      });
+    } else if (!CATALOG_LOCALE.test(locale)) {
+      issues.push({
+        level: 'error',
+        message: `"${locale}" não tem catálogo no boilerplate: os idiomas disponíveis são pt (pt-BR) e en (en-US). Gerar com "${locale}" produziria um projeto sem esse idioma.`,
       });
     }
   }

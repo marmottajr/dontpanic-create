@@ -12,6 +12,10 @@ export default tseslint.config(
       // O template é o boilerplate de outro repo, com o lint dele. Lintar aqui só
       // produziria ruído sobre código que não é nosso e que não editamos.
       'packages/cli/template/**',
+      // As variantes de `swapVariant` são arquivos DO PROJETO GERADO guardados aqui: importam
+      // `../src/...` e pacotes que só existem lá, então não tipam neste repo. Quem as
+      // verifica é o lint e o e2e do projeto gerado, na conformidade.
+      'packages/cli/assets/**',
       '.conformance/**',
     ],
   },

@@ -926,6 +926,16 @@ export const plansManifest: FeatureManifest = {
     {
       file: 'apps/api/src/modules/auth/services/signup.service.ts',
       kind: 'replace',
+      // A desestruturação de DENTRO da transação. A de fora (acima) e o `return` (abaixo)
+      // tinham costura; esta, que lê `planName` direto de `provisionTenant`, não — e sobra
+      // como TS2339 em todo vetor com registro público ligado e planos desligados.
+      pattern: 'const \\{ tenant, adminProfileId, planName \\} = await provisionTenant',
+      replacement: 'const { tenant, adminProfileId } = await provisionTenant',
+      reason: '`provisionTenant` deixa de devolver `planName` (a costura de `tenant-provisioning.ts` abaixo).',
+    },
+    {
+      file: 'apps/api/src/modules/auth/services/signup.service.ts',
+      kind: 'replace',
       pattern: "return \\{ tenant, user, planName \\}",
       replacement: 'return { tenant, user }',
       reason: 'Mapa F7 (b) linha 2539: o retorno do serviço perde o mesmo campo.',
@@ -937,6 +947,39 @@ export const plansManifest: FeatureManifest = {
       replacement: 'toTenantDto(tenant)',
       reason:
         'Mapa F7 (b) linha 2539: o call site casa com a nova assinatura de 1 argumento de `toTenantDto`.',
+    },
+
+    // ── oauth.service.ts: a MESMA passagem de planName, no cadastro social ───
+    //
+    // `completeSignup` do OAuth é a terceira porta de criação de empresa, e copia do
+    // signup o mesmo par: desestrutura `planName` de `provisionTenant` e o repassa a
+    // `toTenantDto`. As costuras acima só cobriam `signup.service.ts`, então TODO vetor
+    // com oauth ligado e planos desligados falhava o typecheck da API (TS2339 `planName`
+    // e TS2554 no `toTenantDto`) — a matriz de compilação pegou nos primeiros sete da
+    // família oauth=1 / publicSignup=0. `required: false`: o arquivo só existe com oauth.
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.ts',
+      kind: 'replace',
+      pattern: 'const \\{ tenant, adminProfileId, planName \\} = await provisionTenant',
+      replacement: 'const { tenant, adminProfileId } = await provisionTenant',
+      required: false,
+      reason: '`provisionTenant` deixa de devolver `planName` (mesma razão da costura de signup acima).',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.ts',
+      kind: 'replace',
+      pattern: 'toTenantDto\\(tenant, planName \\? \\{ name: planName \\} : null\\)',
+      replacement: 'toTenantDto(tenant)',
+      required: false,
+      reason: 'O call site casa com a assinatura de 1 argumento de `toTenantDto`.',
+    },
+    {
+      file: 'apps/api/src/modules/auth/oauth/oauth.service.spec.ts',
+      kind: 'dropBlock',
+      block: { start: "it\\('names the plan on the tenant it returns'", end: '\\}\\);' },
+      required: false,
+      reason:
+        'O teste é inteiramente sobre `tenant.planName`, que sai do DTO. Sem registro público o describe inteiro já foi reduzido pela costura de `publicSignup` — aí esta não casa, e está certo.',
     },
 
     // ── TenantsModule: o @Global existia por causa dos limites de plano ─────

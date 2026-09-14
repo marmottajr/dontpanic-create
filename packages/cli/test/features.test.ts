@@ -26,6 +26,8 @@ import {
   removalOrder,
 } from '../src/features/manifest.ts';
 import { globToRegExp } from '../src/features/apply.ts';
+import { readAsset } from '../src/assets.ts';
+import { applySeam, assertFileStillValid } from '../src/seams/index.ts';
 import { ALWAYS_ON, PRESETS, presetRecipe, validateRecipe } from '../src/recipe.ts';
 import { FEATURE_IDS } from '../src/types.ts';
 import type { FeatureId, Recipe } from '../src/types.ts';
@@ -453,6 +455,66 @@ describe('globToRegExp', () => {
     const shallow = globToRegExp('apps/api/*.ts');
     assert.ok(shallow.test('apps/api/main.ts'));
     assert.ok(!shallow.test('apps/api/src/main.ts'));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5 · Variantes embarcadas (`swapVariant`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('variantes de swapVariant', () => {
+  it('todo asset nomeado por uma costura `swapVariant` existe no pacote', async () => {
+    // A variante de `auth.e2e-spec.ts` passou meses declarada e nunca escrita, com a
+    // costura `required: false` — o projeto gerado sem registro público nascia com 15
+    // testes de auth dando 404, e só o e2e da conformidade em CI percebeu. Asset ausente
+    // tem de quebrar AQUI, no `pnpm test` do gerador, que roda em todo PR.
+    const swaps = allSeams().filter(({ seam }) => seam.kind === 'swapVariant');
+    assert.ok(swaps.length > 0, 'nenhuma costura swapVariant — o teste ficou vácuo');
+    for (const { feature, seam } of swaps) {
+      assert.ok(seam.replacement, `[${feature}] swapVariant sem \`replacement\``);
+      const variant = await readAsset(seam.replacement);
+      assert.ok(variant !== undefined, `[${feature}] asset ausente: ${seam.replacement}`);
+    }
+  });
+
+  it('as costuras de `twoFactor` casam na variante sem registro público', async () => {
+    // O aplicador troca o arquivo pela variante ANTES das outras costuras do mesmo arquivo
+    // (ver `apply.ts`). Então as âncoras de 2FA precisam casar na VARIANTE — e, como a
+    // variante vira o pristino do arquivo, uma âncora que deixou de casar não é
+    // classificada como `sobreposta` e pulada: ela para a geração. Este teste pega isso
+    // antes, sem Postgres, e sem precisar do preset mínimo inteiro.
+    const FILE = 'apps/api/test/auth.e2e-spec.ts';
+    const swap = FEATURE_MANIFESTS.publicSignup.seams?.find(
+      (seam) => seam.file === FILE && seam.kind === 'swapVariant',
+    );
+    assert.ok(swap?.replacement, 'publicSignup deixou de trocar auth.e2e-spec.ts por variante');
+    let content = await readAsset(swap.replacement);
+    assert.ok(content !== undefined);
+
+    const twoFactorSeams = (FEATURE_MANIFESTS.twoFactor.seams ?? []).filter((seam) => seam.file === FILE);
+    assert.ok(twoFactorSeams.length > 0);
+    for (const seam of twoFactorSeams) {
+      const outcome = applySeam(seam, content);
+      assert.ok(outcome.matched, `costura de twoFactor não casou na variante: ${seam.kind} ${seam.pattern ?? seam.block?.start ?? ''}`);
+      content = outcome.content;
+    }
+
+    assertFileStillValid(FILE, content);
+    // Import e rotas, e não a palavra "2FA": o cabeçalho de seção dos testes de 2FA fica
+    // para trás também na poda do arquivo ORIGINAL — as costuras tiram os `it()`, não o
+    // comentário. É cosmético, e não é o que este teste guarda.
+    assert.doesNotMatch(content, /otplib|\/2fa\//, 'sobrou 2FA na variante podada');
+    // E a suíte continua sendo a de auth: os testes que não são de 2FA ficaram.
+    assert.match(content, /detects refresh-token reuse/);
+  });
+
+  it('a variante sem registro público não cria conta pelo signup', async () => {
+    // A única menção à rota é o teste que prova que ela NÃO existe (404). Qualquer outra
+    // é um teste que voltou a depender do signup — e daria 404 no projeto gerado.
+    const variant = await readAsset('assets/variants/api/test/auth.e2e-spec.no-public-signup.ts');
+    assert.ok(variant !== undefined);
+    assert.equal(variant.match(/'\/api\/auth\/signup'/g)?.length, 1);
+    assert.match(variant, /expect\(res\.status\)\.toBe\(404\)/);
   });
 });
 

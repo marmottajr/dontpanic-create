@@ -1007,6 +1007,21 @@ export const invitationsManifest: FeatureManifest = {
     {
       file: 'apps/api/test/e2e-app.ts',
       kind: 'replace',
+      // Depois do dropBlock acima, o `Promise.all` fica com UM elemento e a
+      // desestruturação continua pedindo dois: `const [users, invitations] = …` sobre
+      // uma tupla de comprimento 1 é TS2493, e como `e2e-app.ts` é importado por toda
+      // suíte e2e, o erro derrubava as quatro — `auth`, `security`, `tenant-isolation` e
+      // `rls-coverage` — no preset mínimo. A conformidade nunca rodava e2e com convites
+      // desligados, então isso passou; a matriz com `--e2e` em CI pegou.
+      pattern:
+        'const \\[users, invitations\\] = await Promise\\.all\\(\\[\\s*(ownerDb\\(\\)\\.user\\.findMany\\([^\\n]*\\)),\\s*\\]\\);',
+      replacement: 'const users = await $1;',
+      reason:
+        'Sem o segundo `findMany`, o `Promise.all` de um elemento vira a própria chamada, e `invitations` deixa de existir como variável — as costuras seguintes tiram os dois lugares que ainda a leem.',
+    },
+    {
+      file: 'apps/api/test/e2e-app.ts',
+      kind: 'replace',
       pattern: "if \\(users\\.length === 0 && invitations\\.length === 0\\) return;",
       replacement: 'if (users.length === 0) return;',
       reason:

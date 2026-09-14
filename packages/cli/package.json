@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "template",
+    "assets",
     "README.md"
   ],
   "engines": {
